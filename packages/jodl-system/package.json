@@ -14,13 +14,12 @@
   },
   "dependencies": {
     "openai": "^4.0.0",
-    "better-sqlite3": "^9.0.0",
     "zod": "^3.22.0",
     "gray-matter": "^4.0.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.0.0",
     "typescript": "^6.0.0"
   }
+
 }

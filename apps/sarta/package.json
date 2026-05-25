@@ -1,13 +1,15 @@
 {
-  "name": "sarta-store",
+  "name": "@jodl/app-sarta",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -15,7 +17,11 @@
     "lenis": "^1.3.23",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.1"
+    "react-router-dom": "^7.15.1",
+    "@jodl/tokens": "workspace:*",
+    "@jodl/motion": "workspace:*",
+    "@jodl/typography": "workspace:*",
+    "@jodl/hooks": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

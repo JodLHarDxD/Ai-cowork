@@ -33,7 +33,7 @@
   "dependencies": {
     "@jodl/tokens": "workspace:*",
     "gsap": "^3.12.0",
-    "lenis": "^2.0.0"
+    "lenis": "^1.3.0"
   },
   "peerDependencies": {
     "react": "^19.0.0"
