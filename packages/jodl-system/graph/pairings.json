@@ -1,0 +1,41 @@
+{
+  "$schema": "./pairings-schema.json",
+  "version": "0.0.1",
+  "updated": "2026-05-26",
+  "pairings": [
+    {
+      "id": "editorial-luxury-hero",
+      "components": ["editorial-luxury", "charRise", "VideoHero", "PreloaderScreen"],
+      "context": ["luxury-fashion", "editorial", "ecommerce-premium"],
+      "score": 4.9,
+      "uses": 1,
+      "sources": ["sarta"],
+      "rationale": "Editorial serif gravitas + char-reveal + video background = cinematic luxury. PreloaderScreen primes the user for the editorial experience.",
+      "quality": "staging"
+    },
+    {
+      "id": "cart-checkout-flow",
+      "components": ["CartDrawer", "ProductCard", "CheckoutFlow"],
+      "context": ["ecommerce"],
+      "score": null,
+      "uses": 1,
+      "sources": ["sarta"],
+      "rationale": "Standard ecommerce funnel. CartDrawer slides over ProductCard grid. CheckoutFlow replaces CartPage on proceed.",
+      "quality": "staging"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "serif-meets-brutalist-motion",
+      "components": ["editorial-luxury", "glitch-motion"],
+      "reason": "Serif editorial tone demands elegance. Glitch destroys trust signal. Consistent clash across all luxury contexts.",
+      "quality": "staging"
+    },
+    {
+      "id": "smooth-scroll-snap",
+      "components": ["lenisCinematic", "css-scroll-snap"],
+      "reason": "Lenis overrides native scroll behavior. CSS scroll-snap conflicts — unpredictable momentum.",
+      "quality": "proven"
+    }
+  ]
+}

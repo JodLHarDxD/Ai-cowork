@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "updated": "2026-05-26",
+  "scores": {},
+  "deprecated": [],
+  "notes": "Score structure: { componentId: { uses: N, ratings: [1-5], avg: N, kept: N, edited: N, rejected: N } }"
+}

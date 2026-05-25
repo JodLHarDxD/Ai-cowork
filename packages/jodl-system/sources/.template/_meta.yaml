@@ -1,0 +1,20 @@
+# SOURCE TEMPLATE — copy this folder when harvesting a new site
+# Rename folder to: sources/<domain>/
+
+name: <site name>
+url: <full URL>
+harvested: YYYY-MM-DD
+harvested-by: <model or human>
+brand-tone: [luxury | tech-minimal | editorial | brutalist | playful | corporate]
+notable:
+  typography: <what's interesting about their type>
+  motion: <what's interesting about their motion>
+  layout: <what's interesting about their layout>
+  color: <what's interesting about their color>
+quality: staging
+
+# Extracted patterns (link to patterns/ folder after curation)
+patterns-extracted: []
+
+# Raw notes
+notes: ""

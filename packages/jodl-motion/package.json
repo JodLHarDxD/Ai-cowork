@@ -1,0 +1,46 @@
+{
+  "name": "@jodl/motion",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Animation presets — GSAP timelines, Lenis configs, scroll-driven, magnetic, stagger",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./gsap": {
+      "import": "./dist/gsap.js",
+      "types": "./dist/gsap.d.ts"
+    },
+    "./lenis": {
+      "import": "./dist/lenis.js",
+      "types": "./dist/lenis.d.ts"
+    },
+    "./page-transitions": {
+      "import": "./dist/page-transitions.js",
+      "types": "./dist/page-transitions.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@jodl/tokens": "workspace:*",
+    "gsap": "^3.12.0",
+    "lenis": "^2.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^6.0.0"
+  }
+}

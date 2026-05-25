@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "updated": "2026-05-26",
+  "lineage": [
+    {
+      "id": "sarta-preloader",
+      "derived": "PreloaderScreen",
+      "fromApp": "apps/sarta",
+      "fromPath": "src/components/ui/Preloader",
+      "inspiredBy": ["apple.com/splash", "awwwards editorial entries"],
+      "modifications": "Added editorial image grid + Bodoni wordmark + Web Audio API gate",
+      "promotionStatus": "pending — needs 1 more app use"
+    },
+    {
+      "id": "sarta-drag-gallery",
+      "derived": "DragGallery",
+      "fromApp": "apps/sarta",
+      "fromPath": "src/features/editorial/DragGallery",
+      "inspiredBy": ["awwwards horizontal scroll entries", "editorial magazine layouts"],
+      "modifications": "GSAP drag + momentum + boundary clamping",
+      "promotionStatus": "pending — needs 1 more app use"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+node_modules
+dist
+build
+.next
+.turbo
+coverage
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+*.tsbuildinfo
+
+# jodl-system local cache
+packages/jodl-system/embeddings/*.sqlite
+packages/jodl-system/embeddings/*.faiss
+packages/jodl-system/feedback/outputs/
+
+# api keys
+.env.embeddings

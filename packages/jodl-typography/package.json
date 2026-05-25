@@ -1,0 +1,45 @@
+{
+  "name": "@jodl/typography",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Font pairings, text reveal, text highlight, typewriter, kinetic text animations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./reveal": {
+      "import": "./dist/reveal.js",
+      "types": "./dist/reveal.d.ts"
+    },
+    "./highlight": {
+      "import": "./dist/highlight.js",
+      "types": "./dist/highlight.d.ts"
+    },
+    "./pairings": {
+      "import": "./dist/pairings.js",
+      "types": "./dist/pairings.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@jodl/tokens": "workspace:*",
+    "@jodl/motion": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^6.0.0"
+  }
+}

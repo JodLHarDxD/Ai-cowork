@@ -1,0 +1,30 @@
+{
+  "name": "@jodl/cli",
+  "version": "0.0.1",
+  "private": true,
+  "description": "jodl-cli — curate, embed, search, vendor, feedback",
+  "type": "module",
+  "bin": {
+    "jodl": "./bin/jodl.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jodl/system": "workspace:*",
+    "openai": "^4.0.0",
+    "better-sqlite3": "^9.0.0",
+    "commander": "^12.0.0",
+    "chalk": "^5.0.0",
+    "gray-matter": "^4.0.3",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^6.0.0"
+  }
+}

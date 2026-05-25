@@ -1,0 +1,25 @@
+{
+  "name": "jodl-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "JODL monorepo — shared component library + apps + jodl-system intelligence layer",
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules",
+    "jodl": "pnpm --filter @jodl/cli exec jodl"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^6.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=11"
+  }
+}

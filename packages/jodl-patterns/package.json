@@ -1,0 +1,50 @@
+{
+  "name": "@jodl/patterns",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Composed patterns — CartDrawer, CheckoutFlow, ProductCard, PreloaderScreen, Hero variants",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./ecommerce": {
+      "import": "./dist/ecommerce.js",
+      "types": "./dist/ecommerce.d.ts"
+    },
+    "./layout": {
+      "import": "./dist/layout.js",
+      "types": "./dist/layout.d.ts"
+    },
+    "./editorial": {
+      "import": "./dist/editorial.js",
+      "types": "./dist/editorial.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@jodl/tokens": "workspace:*",
+    "@jodl/ui": "workspace:*",
+    "@jodl/motion": "workspace:*",
+    "@jodl/typography": "workspace:*",
+    "@jodl/hooks": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^6.0.0"
+  }
+}

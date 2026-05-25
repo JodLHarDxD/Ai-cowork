@@ -1,0 +1,26 @@
+{
+  "name": "@jodl/system",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Knowledge graph, embeddings, agents, feedback loop — the intelligence layer",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "curate": "node scripts/curate.js",
+    "embed": "node scripts/embed.js",
+    "search": "node scripts/search.js",
+    "feedback": "node scripts/feedback.js",
+    "clean-garbage": "node scripts/clean-garbage.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "better-sqlite3": "^9.0.0",
+    "zod": "^3.22.0",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.0"
+  }
+}
