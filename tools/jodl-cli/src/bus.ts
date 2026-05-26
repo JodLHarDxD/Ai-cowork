@@ -234,6 +234,36 @@ export function findNextTask(provider: Provider, sessionId?: string): { task: Ta
   return null;
 }
 
+/** Find any task by ID across all active sessions. */
+export function findTaskById(taskId: string): { task: TaskFile; path: string; sessionId: string; status: TaskStatus } | null {
+  const sessions = listActiveSessions();
+  for (const s of sessions) {
+    const tasks = listTasks(s.id);
+    for (const t of tasks) {
+      if (t.task.id === taskId) {
+        return { task: t.task, path: t.path, sessionId: s.id, status: t.status };
+      }
+    }
+  }
+  return null;
+}
+
+/** Find claimed task path for a provider+taskId. */
+export function findClaimedPath(taskId: string, provider: Provider): string | null {
+  const sessions = listActiveSessions();
+  for (const s of sessions) {
+    const dir = join(ACTIVE, s.id, "tasks");
+    if (!existsSync(dir)) continue;
+    const files = readdirSync(dir);
+    for (const f of files) {
+      if (f.startsWith(`claimed-${provider}-${taskId}`) || f.startsWith(`claimed-`) && f.includes(taskId)) {
+        return join(dir, f);
+      }
+    }
+  }
+  return null;
+}
+
 /** Read all done task outputs in a session — context for next agent. */
 export function loadSessionContext(sessionId: string): string {
   const tasks = listTasks(sessionId, "done");
