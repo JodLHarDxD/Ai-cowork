@@ -139,8 +139,12 @@ program
 import { registerAgentCommands } from "./commands/agent.js";
 registerAgentCommands(program);
 
-// --- COMMAND BUS (whoami, brief, next, status) ---
+// --- COMMAND BUS (whoami, brief, next, status, claim, submit) ---
 import { registerBusCommands } from "./commands/bus-commands.js";
 registerBusCommands(program);
+
+// --- WATCH (live dashboard) ---
+import { registerWatchCommand } from "./commands/watch.js";
+registerWatchCommand(program);
 
 program.parse();

@@ -11,7 +11,7 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "clean": "turbo clean && rm -rf node_modules",
-    "jodl": "pnpm --filter @jodl/cli exec jodl"
+    "jodl": "node tools/jodl-cli/bin/jodl.js"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
