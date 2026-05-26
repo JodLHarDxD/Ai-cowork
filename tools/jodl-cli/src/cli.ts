@@ -2,13 +2,15 @@
  * jodl-cli — command line interface for jodl-system
  *
  * Commands:
- *   jodl search <query>        — semantic search over component registry
- *   jodl curate <url>          — harvest a reference site into sources/
- *   jodl embed                 — rebuild embedding index
- *   jodl vendor <app> <dest>   — extract app as standalone (detach @jodl/* deps)
- *   jodl feedback <id> <score> — record component rating
- *   jodl compose <brief>       — compose a page from registry + graph
- *   jodl list [filter]         — list components by quality/tags
+ *   jodl search <query>              — semantic search over component registry
+ *   jodl curate <url>               — harvest a reference site into sources/
+ *   jodl embed                      — rebuild embedding index
+ *   jodl vendor <app> <dest>        — extract app as standalone (detach @jodl/* deps)
+ *   jodl feedback <id> <score>      — record component rating
+ *   jodl compose <brief>            — compose a page from registry + graph
+ *   jodl list [filter]              — list components by quality/tags
+ *   jodl agent list                 — list available domain agents
+ *   jodl agent run <name> --brief   — call an agent via LLM API (ANTHROPIC_API_KEY required)
  */
 
 import { Command } from "commander";
@@ -132,5 +134,9 @@ program
     const { embed } = await import("./commands/embed.js");
     await embed();
   });
+
+// --- AGENT ---
+import { registerAgentCommands } from "./commands/agent.js";
+registerAgentCommands(program);
 
 program.parse();
