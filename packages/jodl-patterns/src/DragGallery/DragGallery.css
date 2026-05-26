@@ -1,0 +1,117 @@
+.drag-gallery {
+  padding: 100px 0 40px;
+}
+
+.drag-gallery__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.drag-gallery__title {
+  margin: 8px 0 0;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.drag-gallery__hint {
+  max-width: 22ch;
+  margin: 0;
+  color: var(--muted);
+  text-align: right;
+}
+
+.drag-gallery__track {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding: 8px 24px 32px;
+  cursor: grab;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: auto;
+  scrollbar-color: var(--accent) rgba(255, 255, 255, 0.04);
+}
+
+.drag-gallery__track::-webkit-scrollbar {
+  display: block;
+  height: 4px; /* Super thin gold scrollbar track */
+}
+
+.drag-gallery__track::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  margin-inline: 24px;
+}
+
+.drag-gallery__track::-webkit-scrollbar-thumb {
+  background: var(--accent); /* Luxury gold color */
+  border-radius: 99px;
+  transition: background 0.3s;
+}
+
+.drag-gallery__track::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
+}
+
+.drag-gallery__track.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.drag-gallery__card {
+  flex: 0 0 min(72vw, 420px);
+  scroll-snap-align: start;
+}
+
+.drag-gallery__media-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background-color: var(--cream);
+  border: 1px solid var(--line);
+}
+
+.drag-gallery__card img,
+.drag-gallery__card video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1.2s var(--ease-out);
+}
+
+.drag-gallery__card video {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s var(--ease-out), transform 1.2s var(--ease-out);
+}
+
+.drag-gallery__card:hover img,
+.drag-gallery__card:hover video {
+  transform: scale(1.03);
+}
+
+.drag-gallery__card:hover video {
+  opacity: 1;
+}
+
+.drag-gallery__card h3 {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  font-weight: 400;
+}
+
+@media (max-width: 700px) {
+  .drag-gallery__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .drag-gallery__hint {
+    text-align: left;
+  }
+}

@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { DragGallery } from "../components/DragGallery";
-import { ProductCard } from "../components/ProductCard";
-import { products } from "../data/products";
+import { DragGallery, ProductCard } from "@jodl/patterns";
+import { products, dragGalleryItems } from "../data/products";
 import { images, videos } from "../assets/content-manifest";
 import { lookbookItems } from "../data/lookbook-data";
 import { sartaAudio } from "../components/AudioManager";
@@ -461,7 +460,7 @@ export function Home() {
           INTERACTIVE EXPLORE RAIL
       ═══════════════════════════════════════════════════════════════ */}
       <div className="explore-rail-wrap" data-cursor="drag">
-        <DragGallery />
+        <DragGallery items={dragGalleryItems} />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -529,7 +528,7 @@ export function Home() {
         <div className="featured__grid">
           {featured.map((product) => (
             <div key={product.id} data-cursor="view" className="featured__card-wrap">
-              <ProductCard product={product} />
+              <ProductCard product={product} linkComponent={Link} />
             </div>
           ))}
         </div>

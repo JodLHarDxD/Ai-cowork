@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ProductCard } from "../components/ProductCard";
+import { useSearchParams, Link } from "react-router-dom";
+import { ProductCard } from "@jodl/patterns";
 import { categories, products } from "../data/products";
 import "./Shop.css";
 
@@ -151,6 +151,7 @@ export function Shop() {
                   key={product.id}
                   product={product}
                   layout={index % 5 === 0 ? "editorial" : "grid"}
+                  linkComponent={Link}
                 />
               ))}
             </div>

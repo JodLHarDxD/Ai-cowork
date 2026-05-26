@@ -21,7 +21,8 @@
     "@jodl/tokens": "workspace:*",
     "@jodl/motion": "workspace:*",
     "@jodl/typography": "workspace:*",
-    "@jodl/hooks": "workspace:*"
+    "@jodl/hooks": "workspace:*",
+    "@jodl/patterns": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

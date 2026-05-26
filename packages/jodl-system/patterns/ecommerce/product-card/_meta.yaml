@@ -1,0 +1,18 @@
+id: ecommerce/product-card
+name: ProductCard
+type: ecommerce
+package: "@jodl/patterns"
+export: "ProductCard"
+description: "A gorgeous luxury product grid/editorial card featuring responsive sizing and hover image swap."
+motionDeps:
+  - gsap.fadeIn
+tokenDeps:
+  - typography.editorial
+  - colors.ink
+  - spacing.element
+quality: staging
+score: null
+uses: 1
+usedIn:
+  - sarta
+sourceApp: "apps/sarta/src/features/product/ProductCard"

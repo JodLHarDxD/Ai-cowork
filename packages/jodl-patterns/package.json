@@ -35,7 +35,8 @@
     "@jodl/ui": "workspace:*",
     "@jodl/motion": "workspace:*",
     "@jodl/typography": "workspace:*",
-    "@jodl/hooks": "workspace:*"
+    "@jodl/hooks": "workspace:*",
+    "gsap": "^3.15.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

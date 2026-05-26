@@ -1,0 +1,18 @@
+id: ecommerce/preloader-screen
+name: PreloaderScreen
+type: ecommerce
+package: "@jodl/patterns"
+export: "PreloaderScreen"
+description: "Bodoni font counter ticking 000-100, fan-in of editorial cards, and an interactive permission prompt for ambient soundtracks."
+motionDeps:
+  - gsap.stagger
+  - gsap.fadeIn
+tokenDeps:
+  - typography.display
+  - colors.ink
+quality: staging
+score: 4.8
+uses: 1
+usedIn:
+  - sarta
+sourceApp: "apps/sarta/src/components/ui/Preloader"

@@ -1,0 +1,17 @@
+id: editorial/drag-gallery
+name: DragGallery
+type: editorial
+package: "@jodl/patterns"
+export: "DragGallery"
+description: "Horizontal drag-to-explore lookbook gallery with fluid inertia, wheel acceleration, and hover video autoplay."
+motionDeps:
+  - gsap.drag
+  - lenis
+tokenDeps:
+  - spacing.section
+quality: staging
+score: null
+uses: 1
+usedIn:
+  - sarta
+sourceApp: "apps/sarta/src/features/editorial/DragGallery"

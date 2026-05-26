@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * jodl-cli — command line interface for jodl-system
  *

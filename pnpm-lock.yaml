@@ -50,6 +50,9 @@ importers:
       '@jodl/motion':
         specifier: workspace:*
         version: link:../../packages/jodl-motion
+      '@jodl/patterns':
+        specifier: workspace:*
+        version: link:../../packages/jodl-patterns
       '@jodl/tokens':
         specifier: workspace:*
         version: link:../../packages/jodl-tokens
@@ -176,6 +179,9 @@ importers:
       '@jodl/ui':
         specifier: workspace:*
         version: link:../jodl-ui
+      gsap:
+        specifier: ^3.15.0
+        version: 3.15.0
       react:
         specifier: ^19.0.0
         version: 19.2.6

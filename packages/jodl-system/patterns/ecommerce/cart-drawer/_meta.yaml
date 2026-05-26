@@ -1,0 +1,18 @@
+id: ecommerce/cart-drawer
+name: CartDrawer
+type: ecommerce
+package: "@jodl/patterns"
+export: "CartDrawer"
+description: "A premium, slide-out shopping bag panel supporting reactive items and smooth exit animations."
+motionDeps:
+  - gsap.slideInRight
+tokenDeps:
+  - colors.surface
+  - spacing.gutter
+  - motion.slow
+quality: staging
+score: null
+uses: 1
+usedIn:
+  - sarta
+sourceApp: "apps/sarta/src/features/cart/CartDrawer"
