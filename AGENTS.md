@@ -72,3 +72,25 @@ pnpm jodl feedback CartDrawer 5 --outcome kept
 ## Session end
 Write handoff to D:\.agents\handoffs\<YYYY-MM-DD>-jodl-workspace-<model>.md
 Update D:\.agents\projects\jodl-workspace.md with status changes.
+
+---
+
+## JODL CO-WORK PROTOCOL — autonomous mode
+
+When user says "run jodl" (or anything that means "do your queue work"):
+
+1. Read D:\.agents\jodl-runbook.md — universal protocol for all AIs
+2. Set JODL_PROVIDER if not set (you are typically `codex`)
+3. Follow the per-cycle loop in the runbook:
+   - `jodl next --dry-run` → find your task
+   - `jodl claim <taskId>` → atomic claim, prints brief + system-prompt + prior context
+   - Generate your response according to your role
+   - Write response to `D:\.agents\command-bus\active\<sess>\tasks\<taskId>.draft.md`
+   - `jodl submit <taskId> --file <path>` → marks done + spawns children
+   - Loop until "no tasks for me"
+4. Report back: which tasks done, what spawned, anything blocked.
+
+Your typical roles: implementation-orchestrator, ship-orchestrator, frontend-master, backend-master, schema-master, reliability-master.
+
+CLI binary: `node D:\jodl-workspace\tools\jodl-cli\bin\jodl.js <command>`
+(or `pnpm jodl <command>` from D:\jodl-workspace)
