@@ -4,13 +4,18 @@
   "private": true,
   "description": "Knowledge graph, embeddings, agents, feedback loop — the intelligence layer",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
-    "curate": "node scripts/curate.js",
-    "embed": "node scripts/embed.js",
-    "search": "node scripts/search.js",
-    "feedback": "node scripts/feedback.js",
-    "clean-garbage": "node scripts/clean-garbage.js"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "openai": "^4.0.0",
@@ -19,7 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
     "typescript": "^6.0.0"
   }
-
 }

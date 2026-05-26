@@ -139,4 +139,8 @@ program
 import { registerAgentCommands } from "./commands/agent.js";
 registerAgentCommands(program);
 
+// --- COMMAND BUS (whoami, brief, next, status) ---
+import { registerBusCommands } from "./commands/bus-commands.js";
+registerBusCommands(program);
+
 program.parse();
