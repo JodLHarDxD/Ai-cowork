@@ -3,1592 +3,1741 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>JODL System — Architecture Blueprint</title>
+<title>JODL Multi-AI Orchestration — Full System Blueprint</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-  :root {
-    --bg:       #0d0d0d;
-    --surface:  #141414;
-    --surface2: #1a1a1a;
-    --border:   #2a2a2a;
-    --border2:  #333;
-    --ink:      #e8e8e8;
-    --muted:    #666;
-    --dim:      #444;
-    --accent:   #f0a500;
-    --green:    #3ecf8e;
-    --red:      #e05252;
-    --blue:     #5b9cf6;
-    --purple:   #a78bfa;
-    --orange:   #fb8c3b;
-    --yellow:   #f0c040;
-    --mono:     'JetBrains Mono', monospace;
-  }
+:root {
+  --bg:      #0a0a0a;
+  --s1:      #111111;
+  --s2:      #161616;
+  --s3:      #1e1e1e;
+  --border:  #252525;
+  --border2: #2e2e2e;
+  --ink:     #e2e2e2;
+  --ink2:    #b0b0b0;
+  --muted:   #666;
+  --dim:     #3c3c3c;
+  --accent:  #f0a500;
+  --acc2:    #ffc84a;
+  --claude:  #5b9cf6;
+  --gemini:  #3ecf8e;
+  --gpt:     #a78bfa;
+  --ok:      #3ecf8e;
+  --warn:    #f0c040;
+  --err:     #e05252;
+  --orange:  #fb8c3b;
+  --mono:    'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.65;
+}
 
-  body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 13px;
-    line-height: 1.6;
-  }
+/* ── TOP BAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(10,10,10,0.97);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 28px; height: 46px; gap: 0;
+}
+.topbar .logo {
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.5px; margin-right: 28px;
+  white-space: nowrap;
+}
+.topbar a {
+  font-size: 11px; color: var(--muted); text-decoration: none;
+  padding: 0 13px; height: 46px; display: flex; align-items: center;
+  border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.topbar a:hover { color: var(--ink2); }
+.topbar a.active { color: var(--ink); border-color: var(--accent); }
+.topbar-spacer { flex: 1; }
+.topbar-badge {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  background: var(--s2); border: 1px solid var(--border);
+  padding: 3px 9px; border-radius: 100px;
+}
 
-  /* ── TOP NAV ── */
-  .topnav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(13,13,13,0.95);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0 32px;
-    height: 48px;
-  }
-  .topnav .logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent);
-    margin-right: 32px;
-    letter-spacing: 0.5px;
-  }
-  .topnav a {
-    font-size: 11.5px;
-    color: var(--muted);
-    text-decoration: none;
-    padding: 0 14px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .topnav a:hover { color: var(--ink); }
-  .topnav a.active { color: var(--ink); border-color: var(--accent); }
+/* ── LAYOUT ── */
+.shell { display: grid; grid-template-columns: 200px 1fr; min-height: calc(100vh - 46px); }
 
-  /* ── LAYOUT ── */
-  .layout {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    min-height: calc(100vh - 48px);
-  }
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+  position: sticky; top: 46px;
+  height: calc(100vh - 46px);
+  overflow-y: auto;
+}
+.sb-group { margin-bottom: 18px; }
+.sb-label {
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--dim); margin-bottom: 4px; padding-left: 8px;
+}
+.sb-link {
+  display: block; font-size: 11px; color: var(--muted);
+  text-decoration: none; padding: 5px 8px;
+  border-radius: 4px; transition: all .1s;
+}
+.sb-link:hover { background: var(--s2); color: var(--ink2); }
+.sb-link.active { background: var(--s2); color: var(--accent); }
 
-  .sidebar {
-    border-right: 1px solid var(--border);
-    padding: 24px 16px;
-    position: sticky;
-    top: 48px;
-    height: calc(100vh - 48px);
-    overflow-y: auto;
-  }
-  .sidebar-section { margin-bottom: 20px; }
-  .sidebar-label {
-    font-size: 9.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--dim);
-    margin-bottom: 6px;
-    padding-left: 8px;
-  }
-  .sidebar-link {
-    display: block;
-    font-size: 11.5px;
-    color: var(--muted);
-    text-decoration: none;
-    padding: 5px 8px;
-    border-radius: 4px;
-    transition: all 0.12s;
-  }
-  .sidebar-link:hover { background: var(--surface); color: var(--ink); }
-  .sidebar-link.active { background: var(--surface2); color: var(--accent); }
+.main { padding: 40px 48px; max-width: 1040px; }
 
-  /* ── MAIN ── */
-  .main { padding: 40px 48px; max-width: 1000px; }
+/* ── SECTION ── */
+.section { margin-bottom: 64px; scroll-margin-top: 60px; }
+.sh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.sh h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; }
+.sn { font-family: var(--mono); font-size: 10px; color: var(--dim); background: var(--s2); padding: 2px 7px; border-radius: 3px; }
 
-  /* ── SECTIONS ── */
-  .section { margin-bottom: 56px; scroll-margin-top: 64px; }
-  .section-header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .section-header h2 {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.3px;
-  }
-  .section-number {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--dim);
-    background: var(--surface2);
-    padding: 2px 7px;
-    border-radius: 3px;
-  }
+/* ── HERO ── */
+.hero {
+  background: linear-gradient(135deg, var(--s1) 0%, var(--s2) 100%);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 36px 40px; margin-bottom: 48px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: 0; right: 0;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(240,165,0,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero h1 { font-size: 30px; font-weight: 700; letter-spacing: -.6px; line-height: 1.15; margin-bottom: 10px; }
+.hero h1 em { color: var(--accent); font-style: normal; }
+.hero p { color: var(--ink2); font-size: 13.5px; max-width: 620px; line-height: 1.7; margin-bottom: 24px; }
+.hero-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+.stat { }
+.stat-n { font-family: var(--mono); font-size: 26px; font-weight: 600; color: var(--accent); line-height: 1; }
+.stat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .9px; margin-top: 3px; }
 
-  /* ── HERO ── */
-  .hero {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 32px;
-    margin-bottom: 40px;
-  }
-  .hero h1 {
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-    margin-bottom: 8px;
-  }
-  .hero h1 span { color: var(--accent); }
-  .hero p {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.7;
-    max-width: 640px;
-  }
-  .hero-meta {
-    display: flex;
-    gap: 20px;
-    margin-top: 20px;
-    flex-wrap: wrap;
-  }
-  .hero-stat { text-align: center; }
-  .hero-stat .num {
-    font-family: var(--mono);
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--accent);
-  }
-  .hero-stat .lbl {
-    font-size: 10px;
-    color: var(--dim);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-  }
+/* ── CALLOUT / NOTE ── */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: rgba(240,165,0,.05);
+  padding: 12px 16px; border-radius: 0 6px 6px 0;
+  margin-bottom: 16px;
+}
+.callout.info { border-color: var(--claude); background: rgba(91,156,246,.05); }
+.callout.ok   { border-color: var(--ok);     background: rgba(62,207,142,.05); }
+.callout.warn { border-color: var(--warn);   background: rgba(240,192,64,.05); }
+.callout p { color: var(--ink2); margin: 0; font-size: 12.5px; }
+.callout strong { color: var(--ink); }
 
-  /* ── STATUS GRID ── */
-  .status-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-  }
-  .status-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 16px;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  .status-card .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-  .status-card .title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
-  .status-card .desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
-  .status-card.ok { border-left: 3px solid var(--green); }
-  .status-card.warn { border-left: 3px solid var(--yellow); }
-  .status-card.err { border-left: 3px solid var(--red); }
-  .status-card.info { border-left: 3px solid var(--blue); }
+/* ── PROVIDER TAGS ── */
+.tag-claude { background: rgba(91,156,246,.12); color: var(--claude); border: 1px solid rgba(91,156,246,.3); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; }
+.tag-gemini { background: rgba(62,207,142,.12); color: var(--gemini); border: 1px solid rgba(62,207,142,.3); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; }
+.tag-gpt    { background: rgba(167,139,250,.12); color: var(--gpt);    border: 1px solid rgba(167,139,250,.3); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; }
+.tag-ok   { background: rgba(62,207,142,.12);  color: var(--ok);   border: 1px solid rgba(62,207,142,.25);  border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
+.tag-warn { background: rgba(240,192,64,.12);  color: var(--warn); border: 1px solid rgba(240,192,64,.25);  border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
+.tag-err  { background: rgba(224,82,82,.12);   color: var(--err);  border: 1px solid rgba(224,82,82,.25);   border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
 
-  /* ── BADGE ── */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    font-family: var(--mono);
-    font-size: 9.5px;
-    padding: 2px 7px;
-    border-radius: 3px;
-    font-weight: 500;
-    vertical-align: middle;
-    margin-left: 4px;
-  }
-  .badge-green  { background: rgba(62,207,142,.15); color: var(--green); border: 1px solid rgba(62,207,142,.3); }
-  .badge-yellow { background: rgba(240,192,64,.12);  color: var(--yellow); border: 1px solid rgba(240,192,64,.3); }
-  .badge-red    { background: rgba(224,82,82,.12);   color: var(--red);    border: 1px solid rgba(224,82,82,.3); }
-  .badge-blue   { background: rgba(91,156,246,.12);  color: var(--blue);   border: 1px solid rgba(91,156,246,.3); }
-  .badge-purple { background: rgba(167,139,250,.12); color: var(--purple); border: 1px solid rgba(167,139,250,.3); }
-  .badge-orange { background: rgba(251,140,59,.12);  color: var(--orange); border: 1px solid rgba(251,140,59,.3); }
+/* ── CODE / MONO BLOCK ── */
+.code-block {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px 20px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.8;
+  overflow-x: auto;
+}
+.code-block .cm { color: var(--muted); }
+.code-block .ck { color: var(--claude); }
+.code-block .cv { color: var(--gemini); }
+.code-block .cp { color: var(--gpt); }
+.code-block .ca { color: var(--accent); }
+.code-block .cs { color: var(--ok); }
 
-  /* ── CODE ── */
-  pre, code {
-    font-family: var(--mono);
-    font-size: 11.5px;
-  }
-  code {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    padding: 1px 6px;
-    border-radius: 3px;
-    color: var(--blue);
-  }
-  pre {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 20px;
-    overflow-x: auto;
-    color: var(--ink);
-    line-height: 1.6;
-    margin: 12px 0;
-  }
-  pre code {
-    background: none;
-    border: none;
-    padding: 0;
-    color: inherit;
-  }
-  .comment { color: var(--dim); }
-  .string { color: var(--green); }
-  .key { color: var(--accent); }
-  .kw { color: var(--purple); }
+/* ── FILE TREE ── */
+.tree {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px 20px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.9;
+}
+.td { color: var(--accent); }
+.tf { color: var(--ink2); }
+.tc { color: var(--dim); margin-left: 6px; }
+.tok::before { content: '✓ '; color: var(--ok); }
+.twarn::before { content: '~ '; color: var(--warn); }
+.tmiss::before { content: '✗ '; color: var(--err); }
 
-  /* ── ARCH DIAGRAM ── */
-  .arch {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 28px;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    overflow-x: auto;
-    line-height: 1.8;
-  }
-  .arch .tier-label {
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--dim);
-    margin-bottom: 4px;
-  }
-  .tier { margin: 12px 0; }
-  .node {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 4px;
-    padding: 5px 12px;
-    margin: 3px 4px;
-    font-size: 11px;
-    font-weight: 500;
-  }
-  .node-claude  { border-color: rgba(91,156,246,.5);   color: var(--blue); }
-  .node-gemini  { border-color: rgba(62,207,142,.5);   color: var(--green); }
-  .node-codex   { border-color: rgba(167,139,250,.5);  color: var(--purple); }
-  .node-bus     { border-color: rgba(240,160,0,.5);    color: var(--accent); }
-  .arrow {
-    color: var(--dim);
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    font-size: 16px;
-  }
+/* ── TABLES ── */
+table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
+th { background: var(--s2); font-size: 9.5px; text-transform: uppercase; letter-spacing: .9px; color: var(--dim); font-weight: 600; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--s1); }
 
-  /* ── FLOW DIAGRAM ── */
-  .flow {
-    display: flex;
-    gap: 0;
-    align-items: stretch;
-    overflow-x: auto;
-    padding: 8px 0;
-  }
-  .flow-step {
-    flex: 1;
-    min-width: 120px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-    position: relative;
-    margin-right: 28px;
-  }
-  .flow-step:last-child { margin-right: 0; }
-  .flow-step::after {
-    content: '→';
-    position: absolute;
-    right: -22px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--dim);
-    font-size: 16px;
-  }
-  .flow-step:last-child::after { display: none; }
-  .flow-step .step-num {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--dim);
-    margin-bottom: 4px;
-  }
-  .flow-step .step-title { font-size: 11.5px; font-weight: 600; margin-bottom: 4px; }
-  .flow-step .step-desc { font-size: 10.5px; color: var(--muted); line-height: 1.4; }
-  .flow-step .step-who {
-    margin-top: 8px;
-    font-family: var(--mono);
-    font-size: 9.5px;
-    padding: 2px 7px;
-    border-radius: 3px;
-    display: inline-block;
-  }
+/* ── ARCH DIAGRAM: 3-TIER TREE ── */
+.arch-tree {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 28px 20px;
+  margin-bottom: 20px;
+}
+.arch-tier {
+  display: flex; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
+}
+.arch-tier + .arch-connector { margin: 10px 0; }
+.arch-connector {
+  text-align: center;
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  position: relative;
+}
+.arch-connector::before {
+  content: '';
+  display: block;
+  width: 1px; height: 14px;
+  background: var(--border2);
+  margin: 0 auto 3px;
+}
+.arch-node {
+  padding: 9px 16px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 600;
+  text-align: center; min-width: 130px;
+}
+.arch-node .an-role { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+.arch-node .an-model { font-family: var(--mono); font-size: 9px; opacity: .7; }
+.an-claude { background: rgba(91,156,246,.1); border: 1px solid rgba(91,156,246,.35); color: var(--claude); }
+.an-gemini { background: rgba(62,207,142,.1); border: 1px solid rgba(62,207,142,.35); color: var(--gemini); }
+.an-gpt    { background: rgba(167,139,250,.1); border: 1px solid rgba(167,139,250,.35); color: var(--gpt);  }
+.an-ceo    { background: rgba(240,165,0,.1);   border: 1px solid rgba(240,165,0,.35);   color: var(--accent); }
 
-  /* ── TABLE ── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-  th {
-    background: var(--surface2);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--dim);
-    font-weight: 600;
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-  td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-    color: var(--ink);
-  }
-  tr:hover td { background: var(--surface); }
-  td:first-child { font-family: var(--mono); color: var(--blue); font-size: 11.5px; }
+.tier-label {
+  font-family: var(--mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--dim); text-align: center; margin-bottom: 10px;
+}
+.parallel-note {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); text-align: center;
+  margin: 4px 0 6px;
+}
+.parallel-bracket {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin: 2px 0 2px;
+}
+.pb-line { flex: 1; height: 1px; background: var(--border2); max-width: 160px; }
 
-  /* ── FILE TREE ── */
-  .tree {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 20px;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    line-height: 1.8;
-  }
-  .tree-dir { color: var(--accent); }
-  .tree-file { color: var(--muted); }
-  .tree-comment { color: var(--dim); margin-left: 8px; }
-  .tree-ok::before { content: '✓ '; color: var(--green); }
-  .tree-warn::before { content: '~ '; color: var(--yellow); }
-  .tree-miss::before { content: '✗ '; color: var(--red); }
+/* ── BUS FLOW DIAGRAM (SVG-like using CSS) ── */
+.bus-flow {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 28px 24px;
+  margin-bottom: 20px;
+}
+.bus-row {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 6px;
+}
+.bus-box {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 5px; padding: 8px 14px;
+  font-family: var(--mono); font-size: 11px;
+  min-width: 160px; text-align: center;
+}
+.bus-box.pending { border-color: rgba(240,192,64,.5); color: var(--warn); }
+.bus-box.claimed { border-color: rgba(91,156,246,.5); color: var(--claude); }
+.bus-box.done    { border-color: rgba(62,207,142,.5); color: var(--ok); }
+.bus-box .bbn { font-size: 9px; opacity: .6; display: block; margin-bottom: 2px; }
+.bus-arrow {
+  flex: 1; text-align: center;
+  color: var(--dim); font-size: 18px;
+  padding: 0 6px; position: relative;
+}
+.bus-arrow .ba-label {
+  position: absolute; top: -16px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px; color: var(--muted);
+  white-space: nowrap; font-family: var(--mono);
+}
+.bus-sub {
+  font-size: 10.5px; color: var(--muted);
+  margin-top: 6px; padding-left: 4px; line-height: 1.7;
+}
+.bus-sub li { list-style: none; padding: 0; }
+.bus-sub li::before { content: '  '; }
 
-  /* ── COLLAPSIBLE ── */
-  details {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    overflow: hidden;
-  }
-  details summary {
-    padding: 12px 16px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 12.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    list-style: none;
-    user-select: none;
-  }
-  details summary::-webkit-details-marker { display: none; }
-  details summary::before {
-    content: '▶';
-    font-size: 9px;
-    color: var(--dim);
-    transition: transform 0.15s;
-  }
-  details[open] summary::before { transform: rotate(90deg); }
-  details[open] summary { border-bottom: 1px solid var(--border); }
-  .details-body { padding: 16px; }
+/* ── PIPELINE FLOW ── */
+.pipeline {
+  display: grid; gap: 2px; margin-bottom: 20px;
+}
+.pipe-row {
+  display: flex; align-items: stretch;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+  min-height: 64px;
+}
+.pipe-step-n {
+  background: var(--s2); border-right: 1px solid var(--border);
+  min-width: 36px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--dim);
+  flex-shrink: 0;
+}
+.pipe-body { flex: 1; padding: 12px 16px; }
+.pipe-title { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.pipe-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.pipe-who { float: right; margin: 0 0 4px 12px; }
+.pipe-cmd { font-family: var(--mono); font-size: 10px; color: var(--ok); margin-top: 5px; }
+.pipe-phase {
+  background: var(--s3); border-left: 1px solid var(--border);
+  min-width: 70px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--dim); flex-shrink: 0;
+  padding: 0 12px; text-align: center;
+  flex-direction: column; gap: 4px;
+}
+.phase-gate {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 8px 20px;
+  text-align: center; margin: 4px 0;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+.phase-gate::before { content: '⛔  GATE: '; color: var(--warn); font-weight: 600; }
 
-  /* ── GAP CARD ── */
-  .gap-card {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 8px;
-    display: grid;
-    grid-template-columns: 16px 1fr auto;
-    gap: 12px;
-    align-items: start;
-  }
-  .gap-card .priority {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }
-  .p1 { background: var(--red); }
-  .p2 { background: var(--orange); }
-  .p3 { background: var(--yellow); }
-  .p4 { background: var(--dim); }
-  .gap-card .content .title { font-weight: 600; font-size: 12.5px; margin-bottom: 4px; }
-  .gap-card .content .desc { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
-  .gap-card .fix { font-size: 10.5px; color: var(--green); font-family: var(--mono); white-space: nowrap; }
+/* ── GRID 2-COL ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
 
-  /* ── IMPROVEMENT CARDS ── */
-  .improve-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 12px;
-  }
-  .improve-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-  }
-  .improve-card .ic-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .improve-card .ic-icon { font-size: 20px; }
-  .improve-card .ic-title { font-size: 12.5px; font-weight: 600; }
-  .improve-card .ic-body { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
-  .improve-card .ic-before, .improve-card .ic-after {
-    margin-top: 10px;
-    font-size: 10.5px;
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-family: var(--mono);
-    line-height: 1.5;
-  }
-  .improve-card .ic-before { background: rgba(224,82,82,.08); color: #e05252; border: 1px solid rgba(224,82,82,.2); }
-  .improve-card .ic-after  { background: rgba(62,207,142,.08); color: #3ecf8e; border: 1px solid rgba(62,207,142,.2); }
-  .improve-card .ic-before::before { content: '✗  Now: '; font-weight: 600; }
-  .improve-card .ic-after::before  { content: '✓  Fix: '; font-weight: 600; }
+/* ── INFO CARD ── */
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px;
+}
+.card h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.card p, .card li { font-size: 11.5px; color: var(--muted); line-height: 1.65; }
+.card ul { padding-left: 14px; }
 
-  /* ── PROVIDER CARDS ── */
-  .provider-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .provider-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-  }
-  .provider-card .p-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-  .provider-card .p-model { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-bottom: 10px; }
-  .provider-card .p-roles { font-size: 11px; color: var(--muted); line-height: 1.8; }
-  .provider-card .p-limit { margin-top: 10px; font-size: 10.5px; }
+/* ── PROVIDER CARDS ── */
+.pcard {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px;
+}
+.pcard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.pcard-icon { font-size: 22px; }
+.pcard-name { font-size: 14px; font-weight: 700; }
+.pcard-env { font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+.pcard-roles { margin-top: 10px; }
+.pcard-role-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+.pcard-role-row:last-child { border-bottom: none; }
+.pcard-role-name { font-family: var(--mono); color: var(--ink2); }
+.pcard-role-model { font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
 
-  /* ── MISC ── */
-  p { margin-bottom: 10px; color: var(--muted); line-height: 1.7; }
-  h3 { font-size: 14px; font-weight: 600; margin: 20px 0 10px; }
-  h4 { font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin: 16px 0 8px; }
-  ul { padding-left: 18px; color: var(--muted); line-height: 1.8; font-size: 12px; }
-  li { margin-bottom: 2px; }
-  strong { color: var(--ink); font-weight: 600; }
-  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+/* ── CONTEXT SCOPE DIAGRAM ── */
+.ctx-grid {
+  display: grid; grid-template-columns: 1fr 2fr;
+  gap: 16px; margin-bottom: 16px;
+}
+.ctx-agent {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px;
+}
+.ctx-agent-name { font-weight: 600; font-size: 12.5px; margin-bottom: 6px; }
+.ctx-sees { font-size: 11px; color: var(--muted); line-height: 1.7; }
+.ctx-bar {
+  display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap;
+}
+.ctx-chip {
+  font-family: var(--mono); font-size: 9.5px;
+  padding: 2px 8px; border-radius: 3px;
+}
+.ctx-chip.own    { background: rgba(62,207,142,.12); color: var(--ok); border: 1px solid rgba(62,207,142,.25); }
+.ctx-chip.orch   { background: rgba(240,165,0,.12);  color: var(--accent); border: 1px solid rgba(240,165,0,.25); }
+.ctx-chip.hidden { background: rgba(60,60,60,.2); color: var(--dim); border: 1px solid var(--border); text-decoration: line-through; }
 
-  .callout {
-    background: rgba(240,160,0,.06);
-    border: 1px solid rgba(240,160,0,.2);
-    border-left: 3px solid var(--accent);
-    border-radius: 0 6px 6px 0;
-    padding: 12px 16px;
-    margin: 12px 0;
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.6;
-  }
-  .callout strong { color: var(--accent); }
+/* ── SPAWN CHAIN DIAGRAM ── */
+.spawn-chain { margin-bottom: 16px; }
+.spawn-parent {
+  background: rgba(91,156,246,.08); border: 1px solid rgba(91,156,246,.3);
+  border-radius: 6px; padding: 12px 16px; margin-bottom: 12px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--claude);
+}
+.spawn-children {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px; padding-left: 24px; position: relative;
+}
+.spawn-children::before {
+  content: '';
+  position: absolute; left: 8px; top: -12px; bottom: 20px;
+  width: 1px; background: var(--border2);
+}
+.spawn-child {
+  background: var(--s1); border: 1px solid var(--border2);
+  border-radius: 5px; padding: 9px 12px;
+  font-family: var(--mono); font-size: 10.5px;
+  position: relative;
+}
+.spawn-child::before {
+  content: '↳';
+  position: absolute; left: -18px;
+  color: var(--dim); font-size: 12px;
+}
+.spawn-child.sc-claude { border-color: rgba(91,156,246,.3); color: var(--claude); }
+.spawn-child.sc-gemini { border-color: rgba(62,207,142,.3); color: var(--gemini); }
+.spawn-child.sc-gpt    { border-color: rgba(167,139,250,.3); color: var(--gpt); }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* ── INTELLIGENCE LAYERS ── */
+.layers {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+}
+.layer-row {
+  display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.layer-row:last-child { border-bottom: none; }
+.layer-num {
+  background: var(--s2); border-right: 1px solid var(--border);
+  min-width: 40px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--dim);
+  flex-shrink: 0;
+}
+.layer-body { flex: 1; padding: 11px 16px; }
+.layer-name { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
+.layer-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.layer-files { float: right; margin: 0 0 4px 12px; }
+.lf { font-family: var(--mono); font-size: 9.5px; color: var(--dim); background: var(--s3); padding: 2px 7px; border-radius: 3px; }
 
-  /* ── SCROLL ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+/* ── GAP CARDS ── */
+.gaps { display: grid; gap: 8px; margin-bottom: 12px; }
+.gap {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.gap-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.gp1 { background: var(--err); }
+.gp2 { background: var(--orange); }
+.gp3 { background: var(--warn); }
+.gp4 { background: var(--dim); }
+.gap-body { flex: 1; }
+.gap-title { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.gap-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.gap-fix { font-family: var(--mono); font-size: 10px; color: var(--ok); margin-top: 5px; }
+.gap-label { font-family: var(--mono); font-size: 9.5px; flex-shrink: 0; padding: 2px 7px; border-radius: 3px; align-self: flex-start; margin-top: 2px; }
+.gl1 { background: rgba(224,82,82,.15); color: var(--err); border: 1px solid rgba(224,82,82,.3); }
+.gl2 { background: rgba(251,140,59,.15); color: var(--orange); border: 1px solid rgba(251,140,59,.3); }
+.gl3 { background: rgba(240,192,64,.15); color: var(--warn); border: 1px solid rgba(240,192,64,.3); }
+.gl4 { background: rgba(60,60,60,.3); color: var(--muted); border: 1px solid var(--border); }
 
-  @media (max-width: 768px) {
-    .layout { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .main { padding: 24px 20px; }
-    .provider-row { grid-template-columns: 1fr; }
-    .two-col { grid-template-columns: 1fr; }
-  }
+/* ── SPRINT BLOCK ── */
+.sprint {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 8px; overflow: hidden;
+}
+.sprint-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.sprint-n { font-family: var(--mono); font-size: 10px; color: var(--dim); background: var(--s3); padding: 2px 8px; border-radius: 3px; }
+.sprint-title { font-weight: 600; font-size: 13px; }
+.sprint-body { padding: 14px 16px; }
+.sprint-item {
+  display: flex; gap: 10px; padding: 4px 0;
+  font-size: 11.5px; color: var(--muted); align-items: flex-start;
+}
+.sprint-item::before { content: '—'; color: var(--dim); flex-shrink: 0; margin-top: 1px; }
+
+/* ── MISC ── */
+p { color: var(--ink2); margin-bottom: 10px; }
+h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
+h4 { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .9px; margin: 14px 0 6px; }
+ul { padding-left: 16px; margin-bottom: 10px; }
+ul li { font-size: 12px; color: var(--ink2); margin-bottom: 3px; line-height: 1.6; }
+strong { color: var(--ink); font-weight: 600; }
+code { font-family: var(--mono); font-size: 11px; background: var(--s2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; color: var(--acc2); }
+
+/* ── DIVIDER ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+/* PRINT */
+@media print {
+  .topbar, .sidebar { display: none; }
+  .shell { grid-template-columns: 1fr; }
+  .main { max-width: 100%; padding: 20px; }
+}
 </style>
 </head>
 <body>
 
-<!-- TOP NAV -->
-<nav class="topnav">
-  <span class="logo">⬡ JODL</span>
+<!-- TOP BAR -->
+<nav class="topbar">
+  <span class="logo">JODL//SYSTEM</span>
   <a href="#overview" class="active">Overview</a>
-  <a href="#architecture">Architecture</a>
-  <a href="#components">Components</a>
-  <a href="#flow">Flow</a>
+  <a href="#arch">Architecture</a>
+  <a href="#bus">Command Bus</a>
+  <a href="#pipeline">Pipeline</a>
+  <a href="#providers">Providers</a>
+  <a href="#context">Context</a>
+  <a href="#intelligence">Intelligence</a>
+  <a href="#filesystem">Files</a>
   <a href="#gaps">Gaps</a>
-  <a href="#improvements">Improvements</a>
-  <a href="#roadmap">Roadmap</a>
+  <a href="#runbook">How to Run</a>
+  <div class="topbar-spacer"></div>
+  <span class="topbar-badge">v1.0 · 2026-05-27</span>
 </nav>
 
-<div class="layout">
+<div class="shell">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-label">Overview</div>
-      <a href="#overview" class="sidebar-link">What is JODL</a>
-      <a href="#status" class="sidebar-link">System Status</a>
-      <a href="#providers" class="sidebar-link">Providers</a>
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-group">
+    <div class="sb-label">Start Here</div>
+    <a class="sb-link" href="#overview">1 · Overview</a>
+    <a class="sb-link" href="#arch">2 · Architecture</a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Core Machinery</div>
+    <a class="sb-link" href="#bus">3 · Command Bus</a>
+    <a class="sb-link" href="#pipeline">4 · Pipeline</a>
+    <a class="sb-link" href="#providers">5 · Providers</a>
+    <a class="sb-link" href="#context">6 · Context Flow</a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Knowledge Layer</div>
+    <a class="sb-link" href="#intelligence">7 · Intelligence</a>
+    <a class="sb-link" href="#memory">8 · Brain Memory</a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">Reference</div>
+    <a class="sb-link" href="#filesystem">9 · File System</a>
+    <a class="sb-link" href="#gaps">10 · Gaps &amp; Fixes</a>
+    <a class="sb-link" href="#roadmap">11 · Roadmap</a>
+    <a class="sb-link" href="#runbook">12 · How to Run</a>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- HERO -->
+<div class="hero">
+  <h1>JODL Multi-AI<br/><em>Orchestration System</em></h1>
+  <p>
+    A production-grade, filesystem-based orchestration layer that routes tasks across three AI providers —
+    Claude (Anthropic), Gemini (Google), and GPT (OpenAI) — using a lockless atomic queue.
+    No database, no daemon, no cloud dependency. Just files, rename, and JSON.
+  </p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-n">3</div><div class="stat-l">AI Providers</div></div>
+    <div class="stat"><div class="stat-n">20+</div><div class="stat-l">Agent Roles</div></div>
+    <div class="stat"><div class="stat-n">3</div><div class="stat-l">Orchestration Tiers</div></div>
+    <div class="stat"><div class="stat-n">0</div><div class="stat-l">External Daemons</div></div>
+    <div class="stat"><div class="stat-n">∞</div><div class="stat-l">Parallel Sessions</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: OVERVIEW -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="overview">
+  <div class="sh"><span class="sn">01</span><h2>What is this system?</h2></div>
+
+  <p>
+    JODL is a <strong>multi-AI co-work orchestration system</strong>. You submit a brief (e.g. "build a luxury
+    fashion store with RAG-powered search"). The system automatically routes sub-tasks to the best AI provider
+    for each domain, runs them in dependency order (or in parallel), and collects outputs.
+  </p>
+
+  <div class="callout info">
+    <p><strong>Core insight:</strong> Different AI providers excel at different domains. Gemini has 2M context and
+    multimodal input — ideal for design research. Claude has the best reasoning for architecture decisions.
+    GPT / Codex runs directly in the codebase. By routing tasks to the right provider, you get better outcomes
+    AND more efficient context usage than using one model for everything.</p>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <h3>🤖 Three Providers</h3>
+      <p>Claude (claude-code), Gemini (antigravity), GPT (codex) — each runs on its own platform but shares the same task queue via the filesystem.</p>
     </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Architecture</div>
-      <a href="#architecture" class="sidebar-link">Full Diagram</a>
-      <a href="#tier1" class="sidebar-link">Tier 1 — Master</a>
-      <a href="#tier2" class="sidebar-link">Tier 2 — Domains</a>
-      <a href="#tier3" class="sidebar-link">Tier 3 — Agents</a>
+    <div class="card">
+      <h3>📁 Zero Infrastructure</h3>
+      <p>The queue is literally files on disk. Atomic <code>rename()</code> is the distributed lock. Works across Windows, Mac, Linux, WSL — no DB, no server.</p>
     </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Components</div>
-      <a href="#command-bus" class="sidebar-link">Command Bus</a>
-      <a href="#jodl-system" class="sidebar-link">jodl-system</a>
-      <a href="#jodl-cli" class="sidebar-link">jodl-cli</a>
-      <a href="#brain" class="sidebar-link">Brain Memory</a>
+    <div class="card">
+      <h3>🧠 Intelligence Layer</h3>
+      <p>A shared component registry, graph of pairings, feedback loop, and pattern memory accelerates every agent. Built knowledge survives sessions.</p>
     </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Analysis</div>
-      <a href="#flow" class="sidebar-link">Task Flow</a>
-      <a href="#gaps" class="sidebar-link">Gaps &amp; Missing</a>
-      <a href="#improvements" class="sidebar-link">Better Architecture</a>
-      <a href="#roadmap" class="sidebar-link">Production Roadmap</a>
-    </div>
-  </aside>
+  </div>
 
-  <!-- MAIN -->
-  <main class="main">
-
-    <!-- HERO -->
-    <div class="hero">
-      <h1>JODL <span>Co-Work</span> System</h1>
-      <p>A multi-model AI orchestration system for collaborative software development.
-      Multiple AI providers (Claude, Gemini, GPT) each handle their domain specialty,
-      passing outputs through a shared filesystem bus — keeping each model's context
-      window small, focused, and token-efficient.</p>
-      <div class="hero-meta">
-        <div class="hero-stat"><div class="num">3</div><div class="lbl">AI Providers</div></div>
-        <div class="hero-stat"><div class="num">3</div><div class="lbl">Orchestrator Tiers</div></div>
-        <div class="hero-stat"><div class="num">13</div><div class="lbl">Agent Roles</div></div>
-        <div class="hero-stat"><div class="num">1</div><div class="lbl">Live Session Done</div></div>
-        <div class="hero-stat"><div class="num">5</div><div class="lbl">Pattern Corpus</div></div>
-      </div>
-    </div>
-
-    <!-- ══ SECTION 1: OVERVIEW ══ -->
-    <section class="section" id="overview">
-      <div class="section-header">
-        <span class="section-number">01</span>
-        <h2>What Is This System</h2>
-      </div>
-
-      <p>JODL is a <strong>multi-model AI co-work system</strong> built on a filesystem command bus.
-      The core innovation: instead of sending one massive prompt to one AI, break the problem into
-      domain-specialized tasks and route each task to the model best suited for it — with only the
-      relevant context, not everything.</p>
-
-      <div class="callout">
-        <strong>The token-efficiency insight:</strong> A single monolithic prompt for "build a luxury
-        e-commerce page" might need 50K tokens of context. Split across 4 specialized agents
-        (uiux → motion → typography → frontend), each agent gets ~5K tokens of domain-relevant context.
-        Same outcome, 4× cheaper, each model is sharper in its lane.
-      </div>
-
-      <h3>Three Physical Locations</h3>
-      <div class="tree">
-        <div><span class="tree-dir">D:\.agents\</span><span class="tree-comment">← process memory: brain, handoffs, routing matrix</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">BRAIN.md</span><span class="tree-comment">← master index, loaded every session</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">command-bus\</span><span class="tree-comment">← filesystem task queue (the bus)</span></div>
-        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="tree-ok tree-dir">active\sess-XXXX\tasks\</span><span class="tree-comment">← pending/claimed/done YAML files</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">routing-matrix.yaml</span><span class="tree-comment">← which role → which provider + model</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">models\capabilities.md</span><span class="tree-comment">← model routing table</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">patterns\ mistakes\ staging\</span><span class="tree-comment">← git-versioned learning memory</span></div>
-        <br/>
-        <div><span class="tree-dir">D:\jodl-workspace\</span><span class="tree-comment">← monorepo: apps + packages + tools</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">packages\jodl-system\</span><span class="tree-comment">← AI intelligence layer (agents, registry, graph)</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">packages\jodl-tokens\</span><span class="tree-comment">← design tokens (colors, type, motion, spacing)</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-warn tree-dir">packages\jodl-ui\</span><span class="tree-comment">← components (stubbed — empty)</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">apps\sarta\</span><span class="tree-comment">← luxury fashion ecommerce (62 modules, builds)</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-warn tree-dir">apps\creat-studio\</span><span class="tree-comment">← creative IDE (placeholder stub)</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-warn tree-dir">apps\jodlxverse\</span><span class="tree-comment">← placeholder stub</span></div>
-        <div>&nbsp;&nbsp;<span class="tree-ok tree-dir">tools\jodl-cli\</span><span class="tree-comment">← full CLI: bus, agent runner, corpus tools</span></div>
-      </div>
-
-      <br/>
-      <h3 id="status">System Status Snapshot</h3>
-      <div class="status-grid">
-        <div class="status-card ok">
-          <span class="icon">✅</span>
-          <div>
-            <div class="title">Command Bus — WORKING</div>
-            <div class="desc">Atomic file rename locking. Session creation, task claim/submit, spawn-child parsing, live watch dashboard. Proven on sess-87af32f2 (Antigravity→Codex SARTA redesign).</div>
-          </div>
-        </div>
-        <div class="status-card ok">
-          <span class="icon">✅</span>
-          <div>
-            <div class="title">Claude Auto-Execution — WORKING</div>
-            <div class="desc"><code>jodl next</code> auto-calls Anthropic API, streams output, marks done. ANTHROPIC_API_KEY required.</div>
-          </div>
-        </div>
-        <div class="status-card ok">
-          <span class="icon">✅</span>
-          <div>
-            <div class="title">Routing Matrix — WORKING</div>
-            <div class="desc">3-tier routing (master → domain → leaf) defined in routing-matrix.yaml. 13 roles mapped to providers + models.</div>
-          </div>
-        </div>
-        <div class="status-card ok">
-          <span class="icon">✅</span>
-          <div>
-            <div class="title">Brain Memory — WORKING</div>
-            <div class="desc">Git-versioned. 3 confirmed mistakes. 5 patterns. 1 staging entry. Handoffs between sessions.</div>
-          </div>
-        </div>
-        <div class="status-card warn">
-          <span class="icon">⚠️</span>
-          <div>
-            <div class="title">Gemini / GPT Execution — MANUAL</div>
-            <div class="desc">Antigravity (Gemini) and Codex (GPT) don't auto-run via <code>jodl next</code> — require manual claim → copy-paste → submit. No Gemini or OpenAI API in bus.</div>
-          </div>
-        </div>
-        <div class="status-card warn">
-          <span class="icon">⚠️</span>
-          <div>
-            <div class="title">Context Scoping — NOT DONE</div>
-            <div class="desc">Every agent gets ALL prior session outputs as context. Defeats token-efficiency purpose. Each agent should get only its domain slice.</div>
-          </div>
-        </div>
-        <div class="status-card warn">
-          <span class="icon">⚠️</span>
-          <div>
-            <div class="title">Pattern Corpus — TOO THIN</div>
-            <div class="desc">Only 5 components in registry, all from SARTA. Keyword search over 5 items is useless. Need 30+ to benefit from search/compose.</div>
-          </div>
-        </div>
-        <div class="status-card err">
-          <span class="icon">❌</span>
-          <div>
-            <div class="title">Embeddings (Phase 2) — BLOCKED</div>
-            <div class="desc">sqlite-vss requires C++ build tools on Windows. <code>better-sqlite3</code> fails to compile. Alternative: use Anthropic/OpenAI embedding API directly.</div>
-          </div>
-        </div>
-        <div class="status-card err">
-          <span class="icon">❌</span>
-          <div>
-            <div class="title">Parallel Execution — NOT IMPLEMENTED</div>
-            <div class="desc">routing-matrix.yaml has <code>parallel-with</code> fields and <code>parallel-group</code> on tasks, but no runner implements concurrent execution. Everything is sequential.</div>
-          </div>
-        </div>
-        <div class="status-card err">
-          <span class="icon">❌</span>
-          <div>
-            <div class="title">creat-studio &amp; jodlxverse — STUBS</div>
-            <div class="desc">Both apps exist in the monorepo as placeholders with empty src/. Not initialized.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ SECTION 2: PROVIDERS ══ -->
-    <section class="section" id="providers">
-      <div class="section-header">
-        <span class="section-number">02</span>
-        <h2>Providers &amp; Model Routing</h2>
-      </div>
-
-      <div class="provider-row">
-        <div class="provider-card" style="border-top: 3px solid var(--blue)">
-          <div class="p-name" style="color:var(--blue)">Claude Code</div>
-          <div class="p-model">claude-opus-4-7 / claude-sonnet-4-6</div>
-          <div class="p-roles">
-            master-orchestrator<br/>
-            architecture-orchestrator<br/>
-            security-orchestrator<br/>
-            architect, schema-master<br/>
-            database-master, deploy-master<br/>
-            threat-modeler, vuln-scanner<br/>
-            pentest-simulator
-          </div>
-          <div class="p-limit"><span class="badge badge-green">auto-execute</span> via ANTHROPIC_API_KEY</div>
-        </div>
-        <div class="provider-card" style="border-top: 3px solid var(--green)">
-          <div class="p-name" style="color:var(--green)">Antigravity</div>
-          <div class="p-model">gemini-1.5-pro / gemini-3.5-flash</div>
-          <div class="p-roles">
-            design-orchestrator<br/>
-            research-master<br/>
-            uiux-master<br/>
-            motion-master<br/>
-            typography-master<br/>
-            style-guide<br/>
-            legal-master
-          </div>
-          <div class="p-limit"><span class="badge badge-yellow">manual only</span> no Gemini API wired</div>
-        </div>
-        <div class="provider-card" style="border-top: 3px solid var(--purple)">
-          <div class="p-name" style="color:var(--purple)">Codex</div>
-          <div class="p-model">gpt-5</div>
-          <div class="p-roles">
-            implementation-orchestrator<br/>
-            ship-orchestrator<br/>
-            frontend-master<br/>
-            backend-master<br/>
-            reliability-master
-          </div>
-          <div class="p-limit"><span class="badge badge-yellow">manual only</span> no OpenAI API wired</div>
-        </div>
-      </div>
-
-      <div class="callout">
-        <strong>Design rationale:</strong>
-        Claude = reasoning/architecture/security (strongest at logic + adversarial thinking).
-        Antigravity/Gemini = design/multimodal (2M context window + screenshot analysis).
-        Codex/GPT = code generation (code-tuned, runs in real repo via Codex CLI).
-      </div>
-    </section>
-
-    <!-- ══ SECTION 3: ARCHITECTURE ══ -->
-    <section class="section" id="architecture">
-      <div class="section-header">
-        <span class="section-number">03</span>
-        <h2>Full Architecture Diagram</h2>
-      </div>
-
-      <div class="arch">
-        <div style="color:var(--accent);font-weight:600;margin-bottom:16px;font-size:12px;">
-          CEO INPUT → MASTER → DOMAIN ORCHESTRATORS (parallel) → SUB-AGENTS → CEO REPORT
-        </div>
-
-        <div class="tier" id="tier1">
-          <div class="tier-label">TIER 1 — ENTRY POINT</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="color:var(--dim)">CEO brief</span>
-            <span class="arrow">→</span>
-            <span class="node node-bus">jodl brief "..."</span>
-            <span class="arrow">→</span>
-            <span class="node node-claude">master-orchestrator<br/><span style="font-size:9px;color:var(--dim)">claude-opus-4-7</span></span>
-            <span class="arrow">→</span>
-            <span style="color:var(--dim)">spawns domain orchestrators</span>
-          </div>
-        </div>
-
-        <div style="color:var(--dim);padding:8px 0;font-size:11px;">
-          └── reads: routing-matrix.yaml → decides which domains, assigns providers
-        </div>
-
-        <div class="tier" id="tier2">
-          <div class="tier-label">TIER 2 — DOMAIN ORCHESTRATORS (run in parallel — design &amp; architecture simultaneously)</div>
-          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
-            <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:12px 16px;">
-              <div style="color:var(--green);font-size:11px;font-weight:600;margin-bottom:6px;">design-orchestrator</div>
-              <div style="font-size:10px;color:var(--dim);">antigravity / gemini-1.5-pro</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px;">Spawns: research, uiux,<br/>motion, typography</div>
-              <div style="margin-top:8px;"><span class="badge badge-yellow">parallel group 1</span></div>
-            </div>
-            <div style="display:flex;align-items:center;color:var(--dim);font-size:18px;">⇔</div>
-            <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:12px 16px;">
-              <div style="color:var(--blue);font-size:11px;font-weight:600;margin-bottom:6px;">architecture-orchestrator</div>
-              <div style="font-size:10px;color:var(--dim);">claude-code / claude-opus-4-7</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px;">Spawns: architect,<br/>schema-master, style-guide</div>
-              <div style="margin-top:8px;"><span class="badge badge-yellow">parallel group 1</span></div>
-            </div>
-          </div>
-          <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;">
-            <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:12px 16px;">
-              <div style="color:var(--purple);font-size:11px;font-weight:600;margin-bottom:6px;">implementation-orchestrator</div>
-              <div style="font-size:10px;color:var(--dim);">codex / gpt-5</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px;">Spawns: frontend-master,<br/>backend-master, database-master</div>
-              <div style="margin-top:8px;"><span class="badge badge-purple">phase: build</span> <span class="badge badge-red">depends on tier 2</span></div>
-            </div>
-            <div style="display:flex;align-items:center;color:var(--dim);font-size:18px;">⇔</div>
-            <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:12px 16px;">
-              <div style="color:var(--blue);font-size:11px;font-weight:600;margin-bottom:6px;">security-orchestrator</div>
-              <div style="font-size:10px;color:var(--dim);">claude-code / claude-opus-4-7</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px;">Spawns: threat-modeler,<br/>vuln-scanner, pentest-sim</div>
-              <div style="margin-top:8px;"><span class="badge badge-orange">phase: ship</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tier" id="tier3">
-          <div class="tier-label">TIER 3 — LEAF AGENTS (produce concrete deliverables — no spawn-tasks)</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-            <span class="node node-gemini">research-master</span>
-            <span class="node node-gemini">uiux-master</span>
-            <span class="node node-gemini">motion-master</span>
-            <span class="node node-gemini">typography-master</span>
-            <span class="node node-claude">architect</span>
-            <span class="node node-claude">schema-master</span>
-            <span class="node node-codex">frontend-master</span>
-            <span class="node node-codex">backend-master</span>
-            <span class="node node-claude">database-master</span>
-            <span class="node node-claude">threat-modeler</span>
-            <span class="node node-claude">deploy-master</span>
-          </div>
-        </div>
-
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
-          <div class="tier-label">SHARED INFRASTRUCTURE (used by all tiers)</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-            <span class="node node-bus">command-bus (filesystem)</span>
-            <span class="node node-bus">routing-matrix.yaml</span>
-            <span class="node node-bus">jodl-system registry</span>
-            <span class="node node-bus">D:\.agents brain</span>
-            <span class="node node-bus">jodl-cli</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ SECTION 4: COMMAND BUS ══ -->
-    <section class="section" id="command-bus">
-      <div class="section-header">
-        <span class="section-number">04</span>
-        <h2>Command Bus</h2>
-      </div>
-
-      <p>The bus is <strong>pure filesystem</strong> — no network, no daemon, no database. Works across all AI platforms
-      because they all have file access to <code>D:\.agents\command-bus\</code>.</p>
-
-      <h4>Lock Model</h4>
-      <div class="callout">
-        <strong>Atomic rename = lock.</strong> <code>pending-XXXX.yaml</code> → <code>claimed-&lt;provider&gt;-XXXX.yaml</code>
-        is atomic on both Windows (NTFS) and POSIX. If two providers race for the same task, one rename succeeds,
-        the other fails silently — clean distributed lock with no coordination overhead.
-      </div>
-
-      <h4>Task Lifecycle</h4>
-      <div class="flow">
-        <div class="flow-step">
-          <div class="step-num">STATE 1</div>
-          <div class="step-title">pending</div>
-          <div class="step-desc">Written by orchestrator. Has role, brief, provider, deps.</div>
-          <span class="step-who badge badge-orange">pending-XXXX.yaml</span>
-        </div>
-        <div class="flow-step">
-          <div class="step-num">STATE 2</div>
-          <div class="step-title">claimed</div>
-          <div class="step-desc">Atomic rename. Only one provider wins the race.</div>
-          <span class="step-who badge badge-blue">claimed-claude-XXXX.yaml</span>
-        </div>
-        <div class="flow-step">
-          <div class="step-num">STATE 3</div>
-          <div class="step-title">executing</div>
-          <div class="step-desc">Agent runs (API call or manual). Output streams to terminal.</div>
-          <span class="step-who badge badge-yellow">in progress</span>
-        </div>
-        <div class="flow-step">
-          <div class="step-num">STATE 4</div>
-          <div class="step-title">done</div>
-          <div class="step-desc">Output written to XXXX.out.md. Rename to done-XXXX.yaml.</div>
-          <span class="step-who badge badge-green">done-XXXX.yaml + .out.md</span>
-        </div>
-      </div>
-
-      <h4>Session Context Accumulation</h4>
-      <p>When any agent claims a task, the bus loads ALL <code>done-*.out.md</code> files from the session and
-      injects them as "prior session outputs" into the agent's context. This means each agent sees everything
-      that came before it.</p>
-      <div class="callout">
-        <strong>⚠️ Current limitation:</strong> This is ALL outputs, not filtered to domain relevance.
-        uiux-master doesn't need the database schema output, but gets it anyway.
-        See <a href="#improvements" style="color:var(--accent)">Improvements</a> for the fix.
-      </div>
-
-      <h4>Orchestrator Spawn Chain</h4>
-      <p>When an orchestrator completes, the bus parses a JSON block at the end of its output:</p>
-      <pre>
-<span class="comment">// Orchestrator output must end with:</span>
-<span class="kw">{</span>
-  <span class="key">"phase"</span>: <span class="string">"build"</span>,
-  <span class="key">"spawn-tasks"</span>: [
-    <span class="kw">{</span>
-      <span class="key">"role"</span>: <span class="string">"frontend-master"</span>,
-      <span class="key">"brief"</span>: <span class="string">"implement the CartDrawer component from the design spec"</span>,
-      <span class="key">"depends-on"</span>: [],
-      <span class="key">"parallel-group"</span>: 1
-    <span class="kw">}</span>
-  ],
-  <span class="key">"ceo-report"</span>: <span class="string">"Design phase complete. 4 implementation tasks spawned."</span>
-<span class="kw">}</span></pre>
-      <p>Bus auto-creates child task YAML files. Next <code>jodl next</code> call by the right provider picks them up.</p>
-
-      <h4>CLI Commands</h4>
-      <pre>
-<span class="comment"># Set your identity</span>
-$env:JODL_PROVIDER = <span class="string">"claude-code"</span>  <span class="comment"># or: antigravity | codex</span>
-
-jodl whoami                   <span class="comment"># verify identity + active sessions</span>
-jodl brief <span class="string">"build X"</span>          <span class="comment"># create session → spawn master-orchestrator task</span>
-jodl next                     <span class="comment"># claim + run next task for your provider (auto-API for Claude)</span>
-jodl next --dry-run            <span class="comment"># see what's next without claiming</span>
-jodl status                   <span class="comment"># show all sessions + queue state</span>
-jodl claim &lt;taskId&gt;           <span class="comment"># manual: get brief + system prompt (for Gemini/GPT providers)</span>
-jodl submit &lt;taskId&gt; -f out.md <span class="comment"># manual: submit AI output from file</span>
-jodl watch                    <span class="comment"># live terminal dashboard (run in separate terminal)</span></pre>
-    </section>
-
-    <!-- ══ SECTION 5: JODL SYSTEM ══ -->
-    <section class="section" id="jodl-system">
-      <div class="section-header">
-        <span class="section-number">05</span>
-        <h2>jodl-system — Intelligence Layer</h2>
-      </div>
-
-      <p>The knowledge brain that agents query to compose pages and select components. Lives at
-      <code>packages/jodl-system/</code>. 7 layers from raw sources to AI-queryable embeddings.</p>
-
-      <div class="two-col">
-        <div>
-          <h4>7 Layers</h4>
-          <table>
-            <tr><th>Layer</th><th>What</th><th>Status</th></tr>
-            <tr>
-              <td>sources/</td>
-              <td>Raw harvests from reference sites</td>
-              <td><span class="badge badge-red">empty</span></td>
-            </tr>
-            <tr>
-              <td>patterns/</td>
-              <td>Curated typography/motion/layout/ecommerce</td>
-              <td><span class="badge badge-red">empty</span></td>
-            </tr>
-            <tr>
-              <td>graph/</td>
-              <td>pairings.json, conflicts.json, lineage.json</td>
-              <td><span class="badge badge-yellow">2 pairings, 2 conflicts</span></td>
-            </tr>
-            <tr>
-              <td>registry/</td>
-              <td>components.json — AI queries this</td>
-              <td><span class="badge badge-yellow">5 components</span></td>
-            </tr>
-            <tr>
-              <td>embeddings/</td>
-              <td>sqlite-vss vector DB</td>
-              <td><span class="badge badge-red">blocked (C++)</span></td>
-            </tr>
-            <tr>
-              <td>agents/</td>
-              <td>5 domain agent system prompts</td>
-              <td><span class="badge badge-green">written</span></td>
-            </tr>
-            <tr>
-              <td>feedback/</td>
-              <td>Ratings → auto-deprecate loop</td>
-              <td><span class="badge badge-green">wired</span></td>
-            </tr>
-          </table>
-        </div>
-        <div>
-          <h4>Pattern Promotion Path</h4>
-          <div style="font-family:var(--mono);font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;line-height:2;">
-            <div style="color:var(--muted)">apps/sarta/src/features/X</div>
-            <div style="color:var(--dim)">  ↓ jodl curate</div>
-            <div style="color:var(--muted)">jodl-system/sources/&lt;domain&gt;/</div>
-            <div style="color:var(--dim)">  ↓ manual review + _meta.yaml</div>
-            <div style="color:var(--muted)">jodl-system/patterns/&lt;type&gt;/&lt;slug&gt;/</div>
-            <div style="color:var(--dim)">  ↓ jodl embed</div>
-            <div style="color:var(--muted)">registry/components.json</div>
-            <div style="color:var(--dim)">  ↓ 2+ apps OR &gt;4/5 rating</div>
-            <div style="color:var(--accent)">@jodl/patterns package (proven)</div>
-          </div>
-        </div>
-      </div>
-
-      <h4>Quality Gate (before <code>proven</code> status)</h4>
+  <div class="grid2">
+    <div class="card">
+      <h3>✅ What's proven (working now)</h3>
       <ul>
-        <li>Visual — renders correctly at 3 viewports</li>
-        <li>Code — no inline styles, only <code>@jodl/tokens</code></li>
-        <li>Motion — respects <code>prefers-reduced-motion</code></li>
-        <li>A11y — keyboard nav + aria attributes</li>
-        <li>Performance — GPU-composited animations only</li>
-        <li>Docs — usage example + props in <code>_meta.yaml</code></li>
-        <li>Registry — entry written in <code>components.json</code></li>
+        <li>Full command bus: brief → session → task lifecycle</li>
+        <li>Atomic claim (race-free across concurrent providers)</li>
+        <li>Spawn-chain: orchestrators create child tasks from JSON</li>
+        <li>Claude auto-execution via <code>jodl next</code></li>
+        <li>Manual flow (claim + submit) for Gemini/GPT</li>
+        <li>Routing matrix YAML → role→provider mapping</li>
+        <li>Session context injection to every agent</li>
+        <li>Proven run: design spec → full Zara-style store implementation</li>
+        <li>Multi-provider execution (Sprint 1 shipped today)</li>
+        <li>Domain-scoped context (Sprint 1 shipped today)</li>
       </ul>
-    </section>
+    </div>
+    <div class="card">
+      <h3>⚠️ What still needs work</h3>
+      <ul>
+        <li>System prompts for orchestrator roles (only leaf agents have them)</li>
+        <li>Gemini model names need verification vs Google API</li>
+        <li>Pattern registry: 5 components, needs 30+</li>
+        <li>No embeddings yet (sqlite-vss C++ blocked on Windows)</li>
+        <li>Parallel group execution not fully automated</li>
+        <li>Web dashboard (currently terminal watch command only)</li>
+        <li>creat-studio + jodlxverse apps not scaffolded</li>
+        <li>Knowledge packs missing for most agents</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
-    <!-- ══ SECTION 6: BRAIN MEMORY ══ -->
-    <section class="section" id="brain">
-      <div class="section-header">
-        <span class="section-number">06</span>
-        <h2>Brain Memory System</h2>
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: ARCHITECTURE DIAGRAM -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="arch">
+  <div class="sh"><span class="sn">02</span><h2>3-Tier Orchestration Architecture</h2></div>
+
+  <p>
+    Every session follows a strict hierarchy. Tasks are created by orchestrators, consumed by the next tier,
+    and chained via a dependency graph. Parallel groups run concurrently when both providers are active.
+  </p>
+
+  <div class="arch-tree">
+
+    <!-- Legend -->
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-bottom:20px;flex-wrap:wrap;">
+      <span class="tag-claude">Claude (claude-code)</span>
+      <span class="tag-gemini">Gemini (antigravity)</span>
+      <span class="tag-gpt">GPT (codex)</span>
+    </div>
+
+    <!-- CEO -->
+    <div class="tier-label">INPUT — Human / CEO</div>
+    <div class="arch-tier">
+      <div class="arch-node an-ceo" style="min-width:220px;">
+        <div class="an-role">👤 CEO / Developer</div>
+        <div class="an-model">jodl brief "your project brief"</div>
       </div>
+    </div>
+    <div class="arch-connector">↓ creates session + spawns</div>
 
-      <p>Git-versioned knowledge base at <code>D:\.agents\</code>. Every AI reads it at session start.
-      Bad entry? <code>git revert</code> it. Confidence tiers prevent premature promotion.</p>
-
-      <div class="two-col">
-        <div>
-          <h4>Confidence Tiers</h4>
-          <table>
-            <tr><th>Tier</th><th>Meaning</th><th>Write when</th></tr>
-            <tr><td>experiments/</td><td>Bold untested</td><td>BEFORE risky move</td></tr>
-            <tr><td>staging/</td><td>Learned once</td><td>During session</td></tr>
-            <tr><td>patterns/</td><td>Proven 2+ sessions</td><td>After 2 validations</td></tr>
-            <tr><td>mistakes/</td><td>Confirmed failure</td><td>1 occurrence enough</td></tr>
-          </table>
-        </div>
-        <div>
-          <h4>Current Brain Contents</h4>
-          <table>
-            <tr><th>Type</th><th>Entry</th></tr>
-            <tr><td>mistake</td><td>gstack-fullstack-miss</td></tr>
-            <tr><td>mistake</td><td>baseurl-deprecated-ts6</td></tr>
-            <tr><td>mistake</td><td>codex-react-implementation-patterns (11 anti-patterns)</td></tr>
-            <tr><td>pattern</td><td>vite-ts-path-aliases</td></tr>
-            <tr><td>pattern</td><td>feature-based-architecture</td></tr>
-            <tr><td>pattern</td><td>products-type-extraction</td></tr>
-            <tr><td>pattern</td><td>jodl-forge-phase0-scan</td></tr>
-            <tr><td>pattern</td><td>model-routing-signals</td></tr>
-            <tr><td>staging</td><td>lenis-version-windows-sqlite</td></tr>
-          </table>
-        </div>
+    <!-- TIER 1 -->
+    <div class="tier-label">TIER 1 — Master Orchestrator</div>
+    <div class="arch-tier">
+      <div class="arch-node an-claude" style="min-width:260px;">
+        <div class="an-role">🎯 master-orchestrator</div>
+        <div class="an-model">claude-opus-4-7 · parses brief → decides domains → spawns Tier 2</div>
       </div>
+    </div>
+    <div class="arch-connector">↓ spawns (parallel groups by phase)</div>
 
-      <div class="callout">
-        <strong>Key insight:</strong> The Codex mistakes entry alone (11 anti-patterns) is a production-critical
-        artifact. Every Codex-generated React component needs the checklist applied before merge.
-        This memory prevents repeating $100+ hours of debugging.
+    <!-- TIER 2 DESIGN PHASE -->
+    <div class="tier-label">TIER 2 — Domain Orchestrators (Design Phase)</div>
+    <div class="parallel-bracket">
+      <div class="pb-line"></div>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">parallel</span>
+      <div class="pb-line"></div>
+    </div>
+    <div class="arch-tier">
+      <div class="arch-node an-gemini">
+        <div class="an-role">🎨 design-orchestrator</div>
+        <div class="an-model">gemini-1.5-pro · multimodal + 2M ctx</div>
       </div>
-    </section>
-
-    <!-- ══ SECTION 7: FLOW ══ -->
-    <section class="section" id="flow">
-      <div class="section-header">
-        <span class="section-number">07</span>
-        <h2>End-to-End Task Flow</h2>
+      <div class="arch-node an-claude">
+        <div class="an-role">🏗️ architecture-orchestrator</div>
+        <div class="an-model">claude-opus-4-7 · tradeoffs + decisions</div>
       </div>
+    </div>
+    <div class="arch-connector">↓ spawns Tier 3 leaf agents within each domain</div>
 
-      <h4>Full Session Lifecycle</h4>
-      <pre>
-CEO: jodl brief <span class="string">"redesign SARTA shop page"</span>
-  → sess-XXXX created
-  → pending-AAAA.yaml (master-orchestrator, claude-code)
-
-Claude Code: jodl next
-  → claims + runs master-orchestrator via Anthropic API
-  → output: spawn-tasks JSON → 2 domain orchestrators spawned
-  → pending-BBBB.yaml (design-orchestrator, antigravity)
-  → pending-CCCC.yaml (architecture-orchestrator, claude-code)
-
-<span class="comment"># Parallel: Claude Code runs architecture-orchestrator</span>
-<span class="comment"># Meanwhile: human opens Antigravity, runs "jodl next" (or "jodl claim BBBB")</span>
-
-Antigravity: jodl claim BBBB
-  → prints system-prompt + brief
-  → human pastes into Gemini → gets output
-  → jodl submit BBBB -f gemini-output.md
-  → spawns: uiux-master, motion-master, typography-master
-
-<span class="comment"># Design sub-agents run (each gets domain context only)</span>
-<span class="comment"># Architecture sub-agents run in parallel on Claude Code</span>
-
-Codex: jodl next (after all design + arch tasks done)
-  → implementation-orchestrator runs
-  → spawns: frontend-master, backend-master
-
-<span class="comment"># frontend-master writes actual files in the repo</span>
-<span class="comment"># backend-master writes API + DB schema</span>
-
-Claude Code: jodl next
-  → deploy-master runs
-  → ship-orchestrator spawns security + reliability
-
-CEO: jodl status → all done → review CEO report</pre>
-
-      <h4>Proven Real Run: sess-87af32f2 (2026-05-27)</h4>
-      <div class="status-grid">
-        <div class="status-card ok">
-          <span class="icon">1</span>
-          <div>
-            <div class="title">task a9f2c1ca — design-orchestrator</div>
-            <div class="desc">Antigravity (Gemini). Produced full Zara-pattern design spec for Header, Shop, ProductCard, PDP. Submitted via jodl CLI.</div>
-          </div>
-        </div>
-        <div class="status-card ok">
-          <span class="icon">2</span>
-          <div>
-            <div class="title">task 7f5fec23 — implementation-orchestrator</div>
-            <div class="desc">Codex (GPT). Read design spec from session context. Implemented all 4 components. Build verified at pnpm turbo build. Live browser tested.</div>
-          </div>
-        </div>
+    <!-- TIER 3 DESIGN DOMAIN -->
+    <div class="tier-label">TIER 3 — Leaf Agents (Design Domain)</div>
+    <div class="arch-tier" style="flex-wrap:wrap;gap:8px;">
+      <div class="arch-node an-gemini" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">research-master</div>
+        <div class="an-model">gemini-flash</div>
       </div>
-    </section>
-
-    <!-- ══ SECTION 8: GAPS ══ -->
-    <section class="section" id="gaps">
-      <div class="section-header">
-        <span class="section-number">08</span>
-        <h2>Gaps &amp; Missing Pieces</h2>
+      <div class="arch-node an-gemini" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">uiux-master</div>
+        <div class="an-model">gemini-1.5-pro</div>
       </div>
-      <p>Ordered by impact on production readiness. <strong style="color:var(--red)">P1</strong> = blocks core value.
-      <strong style="color:var(--orange)">P2</strong> = major UX pain.
-      <strong style="color:var(--yellow)">P3</strong> = quality improvement.
-      <strong style="color:var(--dim)">P4</strong> = nice-to-have.</p>
-
-      <div class="gap-card">
-        <div class="priority p1"></div>
-        <div class="content">
-          <div class="title">Multi-provider auto-execution</div>
-          <div class="desc">
-            <code>jodl next</code> only auto-runs Claude tasks via Anthropic SDK. Antigravity (Gemini) and Codex (GPT) require
-            a human to manually copy the brief, run it in their respective AI, and paste output back via <code>jodl submit</code>.
-            This breaks the "autonomous co-work" promise. 2 of 3 providers are still manual.
-            <br/><br/>
-            <strong>Fix:</strong> Add <code>@google/generative-ai</code> SDK for Gemini tasks. Add <code>openai</code> SDK for GPT tasks.
-            In <code>bus-commands.ts</code> <code>next()</code>, branch on <code>task.assignedProvider</code> to call the right client.
-          </div>
-        </div>
-        <div class="fix">bus-commands.ts:~197</div>
+      <div class="arch-node an-gemini" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">motion-master</div>
+        <div class="an-model">gemini-flash</div>
       </div>
-
-      <div class="gap-card">
-        <div class="priority p1"></div>
-        <div class="content">
-          <div class="title">Context scoping (the token-efficiency core feature)</div>
-          <div class="desc">
-            <code>loadSessionContext()</code> in <code>bus.ts</code> injects ALL prior task outputs into every agent.
-            A frontend-master gets the uiux spec + motion spec + typography spec + schema + threat model + everything.
-            This is exactly what the "small scoped windows" philosophy is trying to avoid.
-            <br/><br/>
-            <strong>Fix:</strong> Add <code>domain</code> field to TaskFile. When loading context for agent X, only
-            inject outputs from tasks whose domain overlaps with X's domain. uiux → motion → frontend is one chain.
-            security → pentest is another. They don't need each other's outputs.
-          </div>
-        </div>
-        <div class="fix">bus.ts:267</div>
+      <div class="arch-node an-gemini" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">typography-master</div>
+        <div class="an-model">gemini-flash</div>
       </div>
-
-      <div class="gap-card">
-        <div class="priority p2"></div>
-        <div class="content">
-          <div class="title">Parallel task execution not implemented</div>
-          <div class="desc">
-            routing-matrix.yaml declares <code>parallel-with</code> and tasks have <code>parallel-group</code>,
-            but the CLI runs tasks one at a time. When design-orchestrator and architecture-orchestrator should run
-            simultaneously, they must be manually triggered on two different terminals.
-            <br/><br/>
-            <strong>Fix:</strong> <code>jodl parallel</code> command — claims all tasks in same parallel-group simultaneously,
-            runs <code>Promise.all()</code> for Claude tasks. For cross-provider parallel, each provider runs their own
-            <code>jodl next</code> concurrently.
-          </div>
-        </div>
-        <div class="fix">bus-commands.ts:new cmd</div>
+      <div class="arch-node an-claude" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">architect</div>
+        <div class="an-model">opus-4-7</div>
       </div>
-
-      <div class="gap-card">
-        <div class="priority p2"></div>
-        <div class="content">
-          <div class="title">Embeddings blocked by C++ dependency on Windows</div>
-          <div class="desc">
-            <code>better-sqlite3</code> + <code>sqlite-vss</code> require native C++ build tools (Visual C++ or MinGW).
-            These aren't installed and are heavy to set up. Phase 2 vector search is deferred.
-            Current keyword search over 5 components is trivially useless.
-            <br/><br/>
-            <strong>Fix (no C++ needed):</strong> Use Anthropic's <code>claude-3-haiku</code> embedding endpoint or
-            OpenAI <code>text-embedding-3-small</code> via API. Store vectors as JSON file. No native deps.
-            Slower to build but works immediately on any machine.
-          </div>
-        </div>
-        <div class="fix">commands/embed.ts</div>
+      <div class="arch-node an-claude" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">schema-master</div>
+        <div class="an-model">sonnet-4-6</div>
       </div>
-
-      <div class="gap-card">
-        <div class="priority p2"></div>
-        <div class="content">
-          <div class="title">Pattern corpus too thin — 5 components, all from SARTA</div>
-          <div class="desc">
-            Registry has 5 components: PreloaderScreen, CartDrawer, ProductCard, DragGallery, charRise.
-            All tagged <code>staging</code> quality. No patterns from reference sites. <code>jodl search</code> and
-            <code>jodl compose</code> return near-random results. The agents' "query registry" step is meaningless
-            until corpus reaches 30+.
-            <br/><br/>
-            <strong>Fix:</strong> Run harvest cycle on 5 reference sites (linear.app, stripe.com, awwwards top 10).
-            Use <code>jodl curate</code> + browser to extract patterns. Target 30 components before next sprint.
-          </div>
-        </div>
-        <div class="fix">jodl-system/sources/</div>
-      </div>
-
-      <div class="gap-card">
-        <div class="priority p3"></div>
-        <div class="content">
-          <div class="title">Missing CLI commands documented in README but not implemented</div>
-          <div class="desc">
-            README documents: <code>jodl daemon</code>, <code>jodl cancel</code>, <code>jodl next --force-reclaim</code>.
-            None are in cli.ts or bus-commands.ts. Stale docs mislead new users and other AIs reading the README.
-          </div>
-        </div>
-        <div class="fix">cli.ts / README.md</div>
-      </div>
-
-      <div class="gap-card">
-        <div class="priority p3"></div>
-        <div class="content">
-          <div class="title">Import rewrite in jodl vendor is manual step</div>
-          <div class="desc">
-            <code>jodl vendor sarta D:\sarta-for-client</code> copies packages but prints "Manual step required: rewrite imports".
-            The rewrite is fully mechanical (search-replace <code>@jodl/tokens</code> → <code>./vendor/jodl-tokens/index.js</code>)
-            and can be automated with a regex pass.
-          </div>
-        </div>
-        <div class="fix">commands/vendor.ts:~77</div>
-      </div>
-
-      <div class="gap-card">
-        <div class="priority p3"></div>
-        <div class="content">
-          <div class="title">creat-studio and jodlxverse are empty stubs</div>
-          <div class="desc">
-            Both apps exist in the monorepo tree but have no src/, no package.json content beyond placeholders,
-            no Vite config. They're architectural promises not yet delivered.
-          </div>
-        </div>
-        <div class="fix">apps/creat-studio/ apps/jodlxverse/</div>
-      </div>
-
-      <div class="gap-card">
-        <div class="priority p4"></div>
-        <div class="content">
-          <div class="title">jodl curate has no auto-scrape — only creates _meta.yaml template</div>
-          <div class="desc">
-            <code>curate.ts</code> has a <code>// TODO Phase 2: Auto-scrape with playwright</code> comment.
-            Currently it only creates a folder + template YAML. The actual inspection of the site is manual.
-            With Playwright MCP available, this could be automated.
-          </div>
-        </div>
-        <div class="fix">commands/curate.ts:~50</div>
-      </div>
-
-      <div class="gap-card">
-        <div class="priority p4"></div>
-        <div class="content">
-          <div class="title">No web dashboard for CEO (jodl watch is terminal-only)</div>
-          <div class="desc">
-            <code>jodl watch</code> renders a terminal dashboard showing which provider has work.
-            A simple localhost HTML page (auto-generated, SSE-pushed) would be far more readable and shareable.
-          </div>
-        </div>
-        <div class="fix">commands/watch.ts → watch-server.ts</div>
-      </div>
-    </section>
-
-    <!-- ══ SECTION 9: IMPROVEMENTS ══ -->
-    <section class="section" id="improvements">
-      <div class="section-header">
-        <span class="section-number">09</span>
-        <h2>Better Architecture — What to Change</h2>
-      </div>
-
-      <div class="improve-grid">
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">🎯</span>
-            <span class="ic-title">Domain-scoped context injection</span>
-          </div>
-          <div class="ic-body">The biggest token waste. Every agent getting all prior outputs bloats context, costs tokens, and dilutes focus.</div>
-          <div class="ic-before">loadSessionContext() → ALL done task outputs → injected into every agent</div>
-          <div class="ic-after">loadDomainContext(agentRole) → only outputs from same domain chain → injected</div>
-          <pre style="margin-top:10px;font-size:10px;">
-<span class="comment">// Add to TaskFile schema:</span>
-domain: <span class="string">"design"</span> | <span class="string">"architecture"</span> | <span class="string">"implementation"</span> | <span class="string">"security"</span>
-
-<span class="comment">// loadSessionContext becomes:</span>
-<span class="kw">function</span> loadDomainContext(sessionId, domain) {
-  <span class="kw">return</span> tasks
-    .filter(t => t.domain === domain || t.domain === <span class="string">"shared"</span>)
-    .map(t => loadOutput(t.id))
-    .join(<span class="string">"\n---\n"</span>);
-}</pre>
-        </div>
-
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">🤖</span>
-            <span class="ic-title">Multi-provider auto-execution</span>
-          </div>
-          <div class="ic-body">Right now only Claude can auto-run tasks. Gemini and GPT require manual copy-paste. For true autonomous co-work, all 3 need to be wired.</div>
-          <div class="ic-before">jodl next → only works for claude-code provider</div>
-          <div class="ic-after">jodl next → auto-routes to Anthropic / Google / OpenAI SDK</div>
-          <pre style="margin-top:10px;font-size:10px;">
-<span class="kw">switch</span> (task.assignedProvider) {
-  <span class="kw">case</span> <span class="string">"claude-code"</span>:
-    <span class="kw">return</span> runClaude(task, systemPrompt);
-  <span class="kw">case</span> <span class="string">"antigravity"</span>:
-    <span class="kw">return</span> runGemini(task, systemPrompt);  <span class="comment">// NEW</span>
-  <span class="kw">case</span> <span class="string">"codex"</span>:
-    <span class="kw">return</span> runOpenAI(task, systemPrompt); <span class="comment">// NEW</span>
-}</pre>
-        </div>
-
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">⚡</span>
-            <span class="ic-title">API-based embeddings (unblock Phase 2)</span>
-          </div>
-          <div class="ic-body">sqlite-vss needs C++ build tools. Skip that. Use OpenAI text-embedding-3-small or Anthropic's embedding endpoint. Store as flat JSON — no native deps.</div>
-          <div class="ic-before">sqlite-vss → C++ required → blocked on Windows</div>
-          <div class="ic-after">openai.embeddings.create() → Float32Array → vectors.json</div>
-          <pre style="margin-top:10px;font-size:10px;">
-<span class="comment">// embed.ts — replace sqlite-vss with:</span>
-<span class="kw">const</span> emb = <span class="kw">await</span> openai.embeddings.create({
-  model: <span class="string">"text-embedding-3-small"</span>,
-  input: pattern.description,
-});
-<span class="comment">// save to embeddings/vectors.json</span>
-<span class="comment">// cosine similarity in pure JS — no deps</span></pre>
-        </div>
-
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">🔀</span>
-            <span class="ic-title">True parallel execution</span>
-          </div>
-          <div class="ic-body">Design and architecture phases should run at the same time. Currently sequential. For Claude-to-Claude parallel, Promise.all() is trivial. For cross-provider, both providers just run jodl next simultaneously.</div>
-          <div class="ic-before">design runs → finishes → architecture runs (sequential)</div>
-          <div class="ic-after">design ⇔ architecture simultaneously → implementation waits for both</div>
-          <pre style="margin-top:10px;font-size:10px;">
-<span class="comment">// jodl parallel command:</span>
-<span class="kw">const</span> parallelTasks = findParallelGroup(provider, groupId);
-<span class="kw">await</span> Promise.all(parallelTasks.map(t => runTask(t)));
-<span class="comment">// dep-check gate: implementation only starts</span>
-<span class="comment">// when BOTH design + arch are done</span></pre>
-        </div>
-
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">🧠</span>
-            <span class="ic-title">Knowledge packs per agent</span>
-          </div>
-          <div class="ic-body">Only uiux-master has a knowledge-pack.md. Other agents have no additional knowledge beyond their system prompt. Each agent should have a curated pack: motion-master gets all known motion patterns, frontend-master gets the Codex anti-patterns checklist.</div>
-          <div class="ic-before">uiux-master: has knowledge-pack.md ✓<br/>others: system-prompt only</div>
-          <div class="ic-after">Every agent gets: system-prompt + domain knowledge pack + relevant registry slice</div>
-        </div>
-
-        <div class="improve-card">
-          <div class="ic-header">
-            <span class="ic-icon">📊</span>
-            <span class="ic-title">Web dashboard for CEO</span>
-          </div>
-          <div class="ic-body">The terminal watch command is informative but hard to share or glance at. A localhost HTTP server serving an auto-updating HTML page (SSE or polling) would be the CEO's mission control.</div>
-          <div class="ic-before">jodl watch → terminal-only, monospace grid</div>
-          <div class="ic-after">jodl watch --web → localhost:4000 → visual board with session/task cards</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ SECTION 10: ROADMAP ══ -->
-    <section class="section" id="roadmap">
-      <div class="section-header">
-        <span class="section-number">10</span>
-        <h2>Production Roadmap</h2>
-      </div>
-
-      <details open>
-        <summary>
-          <span class="badge badge-red">Sprint 1 — Core Execution (P1 gaps)</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--dim);font-weight:400;">~3-5 days</span>
-        </summary>
-        <div class="details-body">
-          <table>
-            <tr><th>#</th><th>Task</th><th>File</th><th>Effort</th></tr>
-            <tr>
-              <td>1.1</td>
-              <td>Add Gemini API to <code>jodl next</code> — install <code>@google/generative-ai</code>, add <code>runGemini()</code> to bus-commands.ts</td>
-              <td>bus-commands.ts</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-            <tr>
-              <td>1.2</td>
-              <td>Add OpenAI API to <code>jodl next</code> — install <code>openai</code>, add <code>runOpenAI()</code> to bus-commands.ts</td>
-              <td>bus-commands.ts</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-            <tr>
-              <td>1.3</td>
-              <td>Add <code>domain</code> field to TaskFile. Update <code>loadSessionContext</code> to filter by domain. Update taskToYaml/yamlToTask.</td>
-              <td>bus.ts</td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-            <tr>
-              <td>1.4</td>
-              <td>Update <code>spawnFromParsed</code> to read <code>domain</code> from spawn-tasks JSON and write to TaskFile</td>
-              <td>bus-commands.ts</td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-            <tr>
-              <td>1.5</td>
-              <td>Test full 3-provider session: <code>jodl brief</code> → all 3 providers auto-run their tasks → CEO report</td>
-              <td>integration test</td>
-              <td><span class="badge badge-orange">large</span></td>
-            </tr>
-          </table>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="badge badge-orange">Sprint 2 — Corpus &amp; Search (P2 gaps)</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--dim);font-weight:400;">~2-3 days</span>
-        </summary>
-        <div class="details-body">
-          <table>
-            <tr><th>#</th><th>Task</th><th>File</th><th>Effort</th></tr>
-            <tr>
-              <td>2.1</td>
-              <td>Replace sqlite-vss with API embeddings in <code>embed.ts</code> — use <code>openai.embeddings.create()</code>, store as vectors.json</td>
-              <td>commands/embed.ts</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-            <tr>
-              <td>2.2</td>
-              <td>Update <code>search.ts</code> to use cosine similarity over vectors.json when available (fall back to keyword)</td>
-              <td>src/search.ts</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-            <tr>
-              <td>2.3</td>
-              <td>Run harvest cycle: 5 reference sites with <code>jodl curate</code> + browser inspection → add 20+ patterns to registry</td>
-              <td>jodl-system/sources/</td>
-              <td><span class="badge badge-orange">large</span></td>
-            </tr>
-            <tr>
-              <td>2.4</td>
-              <td>Run <code>jodl embed</code> after corpus filled → verify <code>jodl search "luxury hero"</code> returns meaningful results</td>
-              <td>CLI test</td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-          </table>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="badge badge-yellow">Sprint 3 — Parallel + Quality (P3 gaps)</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--dim);font-weight:400;">~2 days</span>
-        </summary>
-        <div class="details-body">
-          <table>
-            <tr><th>#</th><th>Task</th><th>Effort</th></tr>
-            <tr>
-              <td>3.1</td>
-              <td>Implement <code>jodl parallel</code> command — run all same-provider tasks in a parallel-group concurrently via Promise.all()</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-            <tr>
-              <td>3.2</td>
-              <td>Fix stale README commands: implement or remove <code>jodl daemon</code>, <code>jodl cancel</code>, <code>--force-reclaim</code></td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-            <tr>
-              <td>3.3</td>
-              <td>Automate import rewrite in <code>jodl vendor</code> — regex replace @jodl/* imports inline</td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-            <tr>
-              <td>3.4</td>
-              <td>Add knowledge-pack.md to frontend-master (Codex anti-patterns), motion-master (motion token table), backend-master (API-first schema)</td>
-              <td><span class="badge badge-green">small</span></td>
-            </tr>
-            <tr>
-              <td>3.5</td>
-              <td>Automate <code>jodl curate</code> scraping using <code>$B goto + snapshot + text</code> via browse skill</td>
-              <td><span class="badge badge-yellow">medium</span></td>
-            </tr>
-          </table>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="badge badge-blue">Sprint 4 — Apps &amp; Polish (P4)</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--dim);font-weight:400;">ongoing</span>
-        </summary>
-        <div class="details-body">
-          <ul>
-            <li>Init <code>apps/creat-studio</code> as real Vite/React app (move out of D:\creat studio standalone)</li>
-            <li>Init <code>apps/jodlxverse</code> (Vue)</li>
-            <li>Web dashboard: <code>jodl watch --web</code> → localhost:4000 HTML board</li>
-            <li>Promote SARTA components from staging → proven via 2nd app usage</li>
-          </ul>
-        </div>
-      </details>
-
-      <br/>
-      <div class="callout" style="margin-top:16px;">
-        <strong>Minimum viable "production" definition:</strong>
-        Sprint 1 complete (all 3 providers auto-execute) + Sprint 2 complete (30+ patterns, working vector search).
-        At that point the system can: receive a brief, route tasks autonomously to Claude/Gemini/GPT,
-        accumulate domain-scoped context between agents, and compose pages from a real pattern corpus.
-        That's the token-efficient multi-model co-work system you described.
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <div style="border-top:1px solid var(--border);padding:24px 0;margin-top:40px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);">
-        JODL System Blueprint — generated 2026-05-27 — D:\jodl-workspace\docs\JODL-SYSTEM-BLUEPRINT.html
-      </div>
-      <div style="font-size:10px;color:var(--dim);">
-        <span class="badge badge-green">1 proven run</span>
-        <span class="badge badge-yellow">Sprint 1 next</span>
+      <div class="arch-node an-gemini" style="min-width:110px;">
+        <div class="an-role" style="font-size:11px;">style-guide</div>
+        <div class="an-model">gemini-flash</div>
       </div>
     </div>
 
-  </main>
+    <div class="arch-connector">↓ after design phase + CEO approval gate</div>
+
+    <!-- TIER 2 BUILD PHASE -->
+    <div class="tier-label">TIER 2 — Domain Orchestrator (Build Phase)</div>
+    <div class="arch-tier">
+      <div class="arch-node an-gpt" style="min-width:260px;">
+        <div class="an-role">⚙️ implementation-orchestrator</div>
+        <div class="an-model">gpt-5 · depends on design + arch outputs</div>
+      </div>
+    </div>
+
+    <!-- TIER 3 IMPL DOMAIN -->
+    <div class="tier-label">TIER 3 — Leaf Agents (Implementation Domain)</div>
+    <div class="arch-tier">
+      <div class="arch-node an-gpt" style="min-width:130px;">
+        <div class="an-role" style="font-size:11px;">frontend-master</div>
+        <div class="an-model">gpt-5</div>
+      </div>
+      <div class="arch-node an-gpt" style="min-width:130px;">
+        <div class="an-role" style="font-size:11px;">backend-master</div>
+        <div class="an-model">gpt-5</div>
+      </div>
+      <div class="arch-node an-claude" style="min-width:130px;">
+        <div class="an-role" style="font-size:11px;">database-master</div>
+        <div class="an-model">sonnet-4-6</div>
+      </div>
+    </div>
+
+    <div class="arch-connector">↓ after build + CEO approval gate</div>
+
+    <!-- TIER 2 SHIP PHASE -->
+    <div class="tier-label">TIER 2 — Domain Orchestrators (Ship Phase)</div>
+    <div class="parallel-bracket">
+      <div class="pb-line"></div>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">parallel</span>
+      <div class="pb-line"></div>
+    </div>
+    <div class="arch-tier">
+      <div class="arch-node an-claude">
+        <div class="an-role">🔒 security-orchestrator</div>
+        <div class="an-model">claude-opus-4-7</div>
+      </div>
+      <div class="arch-node an-gpt">
+        <div class="an-role">🚀 ship-orchestrator</div>
+        <div class="an-model">gpt-5</div>
+      </div>
+    </div>
+
+    <!-- TIER 3 SHIP + SEC DOMAIN -->
+    <div class="tier-label">TIER 3 — Leaf Agents (Security + Ship Domain)</div>
+    <div class="arch-tier" style="flex-wrap:wrap;gap:8px;">
+      <div class="arch-node an-claude" style="min-width:110px;"><div class="an-role" style="font-size:11px;">threat-modeler</div><div class="an-model">opus-4-7</div></div>
+      <div class="arch-node an-claude" style="min-width:110px;"><div class="an-role" style="font-size:11px;">vuln-scanner</div><div class="an-model">sonnet-4-6</div></div>
+      <div class="arch-node an-claude" style="min-width:110px;"><div class="an-role" style="font-size:11px;">pentest-simulator</div><div class="an-model">opus-4-7</div></div>
+      <div class="arch-node an-gpt" style="min-width:110px;"><div class="an-role" style="font-size:11px;">reliability-master</div><div class="an-model">gpt-5</div></div>
+      <div class="arch-node an-gemini" style="min-width:110px;"><div class="an-role" style="font-size:11px;">legal-master</div><div class="an-model">gemini-flash</div></div>
+      <div class="arch-node an-claude" style="min-width:110px;"><div class="an-role" style="font-size:11px;">deploy-master</div><div class="an-model">sonnet-4-6</div></div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="arch-connector">↓ all outputs merged by master-orchestrator</div>
+    <div class="arch-tier">
+      <div class="arch-node an-ceo" style="min-width:260px;">
+        <div class="an-role">✅ Final output in codebase + docs</div>
+        <div class="an-model">done-*.yaml + *.out.md in session folder</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <p><strong>Routing is declarative.</strong> The routing matrix at <code>D:\.agents\routing-matrix.yaml</code>
+    maps every role to a provider+model. Change one line to redirect any agent to a different model.
+    The bus reads this on every task dispatch.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: COMMAND BUS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="bus">
+  <div class="sh"><span class="sn">03</span><h2>Command Bus — The Core Mechanism</h2></div>
+
+  <p>
+    The command bus is the backbone of the system. It's a lockless, filesystem-based distributed task queue.
+    No Redis, no Postgres, no broker — just files and an atomic OS rename.
+  </p>
+
+  <h3>3.1 — The Atomic Lock Pattern</h3>
+  <div class="callout info">
+    <p><strong>Key insight:</strong> On any OS (Windows NTFS, Linux ext4, macOS APFS), <code>rename(A → B)</code>
+    is atomic within the same volume. If two processes try to rename the same file, exactly one wins.
+    This is the distributed lock — no DB transaction needed.</p>
+  </div>
+
+  <div class="bus-flow">
+    <div class="bus-row" style="margin-bottom:20px;">
+      <div class="bus-box pending">
+        <span class="bbn">FILENAME</span>
+        pending-<span style="color:var(--warn)">a1b2c3d4</span>.yaml
+      </div>
+      <div class="bus-arrow">
+        <span class="ba-label">jodl next (atomic rename)</span>
+        →
+      </div>
+      <div class="bus-box claimed">
+        <span class="bbn">FILENAME</span>
+        claimed-<span style="color:var(--claude)">claude-code</span>-<span style="color:var(--warn)">a1b2c3d4</span>.yaml
+      </div>
+      <div class="bus-arrow">
+        <span class="ba-label">API call + output</span>
+        →
+      </div>
+      <div class="bus-box done">
+        <span class="bbn">FILENAME</span>
+        done-<span style="color:var(--ok)">a1b2c3d4</span>.yaml
+        <br/><span style="color:var(--ok);font-size:9px;">+ a1b2c3d4.out.md</span>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);padding-left:4px;">
+      <strong style="color:var(--ink)">Race condition handled:</strong>
+      If two providers both attempt <code>rename(pending-X → claimed-provider-X)</code> simultaneously,
+      exactly one succeeds (OS guarantee). The loser gets an ENOENT error and retries with the next task.
+    </div>
+  </div>
+
+  <h3>3.2 — Task YAML Anatomy</h3>
+  <div class="code-block">
+<span class="cm"># D:\.agents\command-bus\active\sess-87af32f2\tasks\pending-7f5fec23.yaml</span>
+
+<span class="ca">id</span>: <span class="cv">7f5fec23</span>
+<span class="ca">sessionId</span>: <span class="cv">sess-87af32f2</span>
+<span class="ca">role</span>: <span class="cs">frontend-master</span>
+<span class="ca">assignedProvider</span>: <span class="cp">codex</span>            <span class="cm"># who must run this</span>
+<span class="ca">assignedModel</span>: <span class="cp">gpt-5</span>
+<span class="ca">phase</span>: <span class="cv">build</span>
+<span class="ca">dependsOn</span>: [<span class="cv">a9f2c1ca</span>]          <span class="cm"># must finish first</span>
+<span class="ca">parallelGroup</span>: <span class="cv">1</span>               <span class="cm"># runs parallel with group 1</span>
+<span class="ca">brief</span>: |
+  Implement the Zara-style Header, Shop, ProductCard, ProductPage...
+  [full task description — can be hundreds of lines]
+  </div>
+
+  <h3>3.3 — Spawn Chain (Orchestrator → Children)</h3>
+  <p>
+    Every orchestrator's output <strong>must</strong> end with a JSON block. The bus parses this block
+    and automatically creates child task YAML files. This is how work cascades through the hierarchy.
+  </p>
+
+  <div class="code-block">
+<span class="cm"># Orchestrator output ends with this block (```json):</span>
+{
+  <span class="ca">"phase"</span>: <span class="cv">"build"</span>,
+  <span class="ca">"spawn-tasks"</span>: [
+    {
+      <span class="ca">"role"</span>: <span class="cs">"frontend-master"</span>,
+      <span class="ca">"brief"</span>: <span class="cv">"Implement the Store page with Zara-style layout..."</span>,
+      <span class="ca">"depends-on"</span>: [],
+      <span class="ca">"parallel-group"</span>: 1
+    },
+    {
+      <span class="ca">"role"</span>: <span class="cs">"backend-master"</span>,
+      <span class="ca">"brief"</span>: <span class="cv">"Build FastAPI endpoints for products, cart, auth..."</span>,
+      <span class="ca">"depends-on"</span>: [],
+      <span class="ca">"parallel-group"</span>: 1        <span class="cm"># same group = runs in parallel</span>
+    }
+  ]
+}
+  </div>
+
+  <div class="spawn-chain">
+    <div class="spawn-parent">
+      ● master-orchestrator (task a9f2c1ca) — outputs JSON spawn block
+    </div>
+    <div class="spawn-children">
+      <div class="spawn-child sc-gemini">design-orchestrator<br/><span style="font-size:9px;opacity:.6;">antigravity · parallel-group 1</span></div>
+      <div class="spawn-child sc-claude">architecture-orchestrator<br/><span style="font-size:9px;opacity:.6;">claude-code · parallel-group 1</span></div>
+      <div class="spawn-child sc-gpt">implementation-orchestrator<br/><span style="font-size:9px;opacity:.6;">codex · depends-on [design, arch]</span></div>
+      <div class="spawn-child sc-claude">security-orchestrator<br/><span style="font-size:9px;opacity:.6;">claude-code · phase ship</span></div>
+      <div class="spawn-child sc-gpt">ship-orchestrator<br/><span style="font-size:9px;opacity:.6;">codex · phase ship</span></div>
+    </div>
+  </div>
+
+  <h3>3.4 — Dependency Resolution</h3>
+  <p>
+    <code>findNextTask(provider)</code> in <code>bus.ts</code> only returns a task if:
+    (1) status is <code>pending</code>, (2) <code>assignedProvider</code> matches current env,
+    (3) ALL ids in <code>dependsOn</code> are in the <code>done</code> set.
+    This means parallel groups execute automatically as their dependencies complete.
+  </p>
+
+  <div class="code-block">
+<span class="cm"># How deps work:</span>
+
+design-orchestrator    <span class="cm">— dependsOn: []           runs immediately</span>
+architecture-orchestrator <span class="cm">— dependsOn: []        runs immediately (parallel)</span>
+implementation-orchestrator <span class="cm">— dependsOn: [design, arch]  waits for both</span>
+security-orchestrator  <span class="cm">— dependsOn: [implementation]  waits + phase=ship gate</span>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: END-TO-END PIPELINE -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="pipeline">
+  <div class="sh"><span class="sn">04</span><h2>End-to-End Pipeline Flow</h2></div>
+
+  <p>
+    A complete session from CEO brief to deployed code. Gates are points where a human must approve
+    before the next phase unlocks.
+  </p>
+
+  <div class="pipeline">
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">1</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">CEO submits brief</div>
+        <div class="pipe-desc">Human writes a project brief: "Build X with Y using Z." Session folder created. Master-orchestrator task file written to disk. Session ID generated.</div>
+        <div class="pipe-cmd">jodl brief "Build a luxury fashion store with real-time AI search"</div>
+      </div>
+      <div class="pipe-phase">INPUT</div>
+    </div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">2</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">Master Orchestrator runs</div>
+        <div class="pipe-desc">Claude Opus reads the brief. Decides which domains are needed. Outputs a JSON spawn-tasks block. Bus parses it and creates domain orchestrator task files — one per domain. Sets parallel groups and depends-on chains.</div>
+        <div class="pipe-cmd">jodl next  (as claude-code)</div>
+      </div>
+      <div class="pipe-phase">DESIGN</div>
+    </div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">3</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-gemini">antigravity</span> <span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">Design + Architecture orchestrators run in parallel</div>
+        <div class="pipe-desc">Gemini (design-orchestrator) analyzes visual references, generates design system, typography, motion spec. Claude (architecture-orchestrator) decides tech stack, data models, API contracts. Both run simultaneously — neither waits for the other.</div>
+        <div class="pipe-cmd">jodl next  (on each provider's terminal)</div>
+      </div>
+      <div class="pipe-phase">DESIGN<br/><span style="font-size:8px;color:var(--dim);margin-top:3px;display:block;">PARALLEL</span></div>
+    </div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">4</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-gemini">antigravity</span> <span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">Domain leaf agents run within each orchestrator's domain</div>
+        <div class="pipe-desc">Each domain orchestrator's spawn-tasks creates leaf tasks: research-master, uiux-master, motion-master (design domain). architect, schema-master (arch domain). Each gets scoped context — only sees outputs from their own domain + orchestrator summaries.</div>
+        <div class="pipe-cmd">jodl next  (loops until all tasks in domain done)</div>
+      </div>
+      <div class="pipe-phase">DESIGN</div>
+    </div>
+
+    <div class="phase-gate">CEO reviews design outputs — approves before Build phase unlocks</div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">5</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-gpt">codex</span></div>
+        <div class="pipe-title">Implementation Orchestrator runs</div>
+        <div class="pipe-desc">GPT reads ALL design + architecture outputs. Creates a concrete implementation plan. Spawns frontend-master, backend-master, database-master tasks. Has access to the actual codebase via Codex CLI.</div>
+        <div class="pipe-cmd">jodl next  (as codex)</div>
+      </div>
+      <div class="pipe-phase">BUILD</div>
+    </div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">6</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-gpt">codex</span> <span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">Implementation leaf agents write actual code</div>
+        <div class="pipe-desc">frontend-master writes React components. backend-master writes API routes. database-master writes schema migrations. All agents write to the real codebase. Outputs are code diffs / file paths changed.</div>
+        <div class="pipe-cmd">jodl next  (each provider loops)</div>
+      </div>
+      <div class="pipe-phase">BUILD</div>
+    </div>
+
+    <div class="phase-gate">CEO reviews code — approves before Ship phase unlocks (manual trigger)</div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">7</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-claude">claude-code</span> <span class="tag-gpt">codex</span></div>
+        <div class="pipe-title">Security + Ship orchestrators run in parallel</div>
+        <div class="pipe-desc">Security orchestrator (Claude) runs threat modeling, vuln scanning, pentest simulation. Ship orchestrator (GPT) handles deploy config, reliability checks, legal review. Both run simultaneously.</div>
+        <div class="pipe-cmd">jodl next  (on each provider)</div>
+      </div>
+      <div class="pipe-phase">SHIP<br/><span style="font-size:8px;color:var(--dim);margin-top:3px;display:block;">PARALLEL</span></div>
+    </div>
+
+    <div class="pipe-row">
+      <div class="pipe-step-n">8</div>
+      <div class="pipe-body">
+        <div class="pipe-who"><span class="tag-claude">claude-code</span></div>
+        <div class="pipe-title">Master Orchestrator merges + final report</div>
+        <div class="pipe-desc">Master orchestrator reads all done outputs across all domains. Writes a final summary: what was built, decisions made, tests to run, deployment steps. Session moves to done/.</div>
+        <div class="pipe-cmd">jodl next  (final merge task)</div>
+      </div>
+      <div class="pipe-phase">DONE</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: PROVIDERS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="providers">
+  <div class="sh"><span class="sn">05</span><h2>Provider Profiles &amp; Routing</h2></div>
+
+  <p>
+    Each provider is an AI platform with a unique identity, strengths, and API. The routing matrix at
+    <code>D:\.agents\routing-matrix.yaml</code> is the single source of truth for which provider runs what.
+  </p>
+
+  <div class="grid3">
+
+    <div class="pcard">
+      <div class="pcard-head">
+        <div class="pcard-icon">🟦</div>
+        <div>
+          <div class="pcard-name" style="color:var(--claude);">claude-code</div>
+          <div class="pcard-env">ANTHROPIC_API_KEY</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Best for: reasoning, architecture, security. Runs autonomously via jodl next with Anthropic streaming SDK.</p>
+      <div class="pcard-roles">
+        <div class="pcard-role-row"><span class="pcard-role-name">master-orchestrator</span><span class="pcard-role-model">opus-4-7</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">architecture-orchestrator</span><span class="pcard-role-model">opus-4-7</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">security-orchestrator</span><span class="pcard-role-model">opus-4-7</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">architect</span><span class="pcard-role-model">opus-4-7</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">schema-master</span><span class="pcard-role-model">sonnet-4-6</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">threat-modeler</span><span class="pcard-role-model">opus-4-7</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">vuln-scanner</span><span class="pcard-role-model">sonnet-4-6</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">deploy-master</span><span class="pcard-role-model">sonnet-4-6</span></div>
+      </div>
+    </div>
+
+    <div class="pcard">
+      <div class="pcard-head">
+        <div class="pcard-icon">🟩</div>
+        <div>
+          <div class="pcard-name" style="color:var(--gemini);">antigravity</div>
+          <div class="pcard-env">GOOGLE_API_KEY</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Best for: design, research, multimodal, 2M context. Runs via @google/genai SDK (auto-execution added in Sprint 1).</p>
+      <div class="pcard-roles">
+        <div class="pcard-role-row"><span class="pcard-role-name">design-orchestrator</span><span class="pcard-role-model">gemini-1.5-pro</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">research-master</span><span class="pcard-role-model">gemini-1.5-flash</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">uiux-master</span><span class="pcard-role-model">gemini-1.5-pro</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">motion-master</span><span class="pcard-role-model">gemini-3.5-flash</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">typography-master</span><span class="pcard-role-model">gemini-3.5-flash</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">style-guide</span><span class="pcard-role-model">gemini-3.5-flash</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">legal-master</span><span class="pcard-role-model">gemini-3.5-flash</span></div>
+      </div>
+    </div>
+
+    <div class="pcard">
+      <div class="pcard-head">
+        <div class="pcard-icon">🟣</div>
+        <div>
+          <div class="pcard-name" style="color:var(--gpt);">codex</div>
+          <div class="pcard-env">OPENAI_API_KEY</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Best for: code generation, implementation, deploys. Runs in real codebase via Codex CLI + OpenAI SDK (Sprint 1).</p>
+      <div class="pcard-roles">
+        <div class="pcard-role-row"><span class="pcard-role-name">implementation-orchestrator</span><span class="pcard-role-model">gpt-5</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">frontend-master</span><span class="pcard-role-model">gpt-5</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">backend-master</span><span class="pcard-role-model">gpt-5</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">reliability-master</span><span class="pcard-role-model">gpt-5</span></div>
+        <div class="pcard-role-row"><span class="pcard-role-name">ship-orchestrator</span><span class="pcard-role-model">gpt-5</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3>Override Rules</h3>
+  <p>The routing matrix supports keyword-based overrides. When a brief contains certain keywords, specific roles are force-reassigned or skipped:</p>
+  <table>
+    <thead><tr><th>Keyword in brief</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>"quick prototype"</code></td><td>Downgrades research + uiux to flash models, skips security + architecture orchestrators</td></tr>
+      <tr><td><code>"production"</code></td><td>Upgrades legal-master to claude-opus for stricter analysis</td></tr>
+      <tr><td><code>"fix bug"</code></td><td>Skips design + research, runs only implementation-orchestrator</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: CONTEXT FLOW -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="context">
+  <div class="sh"><span class="sn">06</span><h2>Context Injection &amp; Domain Scoping</h2></div>
+
+  <p>
+    Every agent gets a system prompt + the outputs of all previously completed tasks injected as context.
+    Before Sprint 1, ALL outputs were injected into ALL agents. This wasted tokens on unrelated work.
+    The new domain scoping keeps context tight.
+  </p>
+
+  <div class="callout info">
+    <p><strong>How it works:</strong> <code>domainForRole(role)</code> derives the domain from the role name.
+    <code>loadSessionContext(sessionId, domain)</code> filters done outputs by domain.
+    No new YAML fields required — domain is inferred.</p>
+  </div>
+
+  <h3>What each agent sees:</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Agent Type</th>
+        <th>Domain</th>
+        <th>Sees</th>
+        <th>Doesn't see</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>master-orchestrator</td>
+        <td><span class="tag-warn">meta</span></td>
+        <td style="color:var(--ok)">ALL outputs from all domains</td>
+        <td style="color:var(--muted)">—</td>
+      </tr>
+      <tr>
+        <td>design-orchestrator</td>
+        <td><span class="tag-warn">meta</span></td>
+        <td style="color:var(--ok)">ALL outputs</td>
+        <td style="color:var(--muted)">—</td>
+      </tr>
+      <tr>
+        <td>uiux-master</td>
+        <td>design</td>
+        <td style="color:var(--ok)">design domain outputs + all orchestrators</td>
+        <td style="color:var(--err)">implementation, security, ship outputs</td>
+      </tr>
+      <tr>
+        <td>frontend-master</td>
+        <td>implementation</td>
+        <td style="color:var(--ok)">implementation outputs + all orchestrators</td>
+        <td style="color:var(--err)">design leaf outputs, security leaf outputs</td>
+      </tr>
+      <tr>
+        <td>threat-modeler</td>
+        <td>security</td>
+        <td style="color:var(--ok)">security outputs + all orchestrators</td>
+        <td style="color:var(--err)">design, implementation leaf outputs</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout ok">
+    <p><strong>Why this matters:</strong> A 10-task session with full outputs might be 40,000 tokens.
+    With domain scoping, a leaf agent in the design domain might only see 8,000 tokens of relevant context.
+    This keeps costs down and reduces hallucinations from unrelated noise.</p>
+  </div>
+
+  <h3>Context injection path:</h3>
+  <div class="code-block">
+<span class="cm"># What ends up in the agent's system prompt:</span>
+
+<span class="ca">[system-prompt.md content]</span>          <span class="cm">← role-specific behavior</span>
+---
+## Prior session outputs
+
+<span class="cs">## master-orchestrator (task a9f2c1ca)</span>
+Brief: Design a Zara-style luxury store...
+[orchestrator output — always included]
+
+<span class="ck">## uiux-master (task b2c3d4e5)</span>
+Brief: Design the product card component...
+[same-domain output — included for design agents]
+
+<span class="cm"># ↑ implementation agents do NOT see this ↑</span>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: INTELLIGENCE LAYER -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="intelligence">
+  <div class="sh"><span class="sn">07</span><h2>jodl-system — The Intelligence Layer</h2></div>
+
+  <p>
+    Parallel to the command bus, the <code>jodl-system</code> package provides a growing knowledge base that
+    agents can query. This is what makes the system smarter over time — it learns from every project.
+  </p>
+
+  <div class="layers">
+    <div class="layer-row">
+      <div class="layer-num">7</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">graph/feedback.json</span></div>
+        <div class="layer-name">Feedback Loop</div>
+        <div class="layer-desc">Every component gets a 1-5 rating after use. Auto-deprecation if avg &lt; 2 after 3+ uses. Ratings flow back to search scoring.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">6</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">agents/*/system-prompt.md</span></div>
+        <div class="layer-name">Agent Knowledge Packs</div>
+        <div class="layer-desc">Per-role system prompts + optional knowledge-pack.md with domain expertise. Currently: uiux, motion, typography, frontend, backend have prompts. Orchestrators use fallback generic prompt.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">5</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">embedding index</span> <span class="tag-warn" style="font-size:9px;">MISSING</span></div>
+        <div class="layer-name">Embedding Index</div>
+        <div class="layer-desc">Planned: vector embeddings for semantic component search. Blocked on sqlite-vss (C++ build on Windows). Alternative: OpenAI/Anthropic embedding API + JSONL vectors file.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">4</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">src/search.ts</span></div>
+        <div class="layer-name">Search (Phase 1)</div>
+        <div class="layer-desc">Keyword search: tag match (3× weight) + name match (2×) + quality bonus. <code>compose(brief)</code> combines search results with graph pairings for full page composition context.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">3</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">graph/pairings.json</span></div>
+        <div class="layer-name">Component Graph</div>
+        <div class="layer-desc">Directed graph of which components pair well together. e.g. PreloaderScreen → CartDrawer → ProductCard. Used by <code>compose()</code> to suggest full page sets.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">2</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">registry/components.json</span></div>
+        <div class="layer-name">Pattern Registry</div>
+        <div class="layer-desc">5 components currently (needs 30+). Each entry: name, description, tags, quality, confidence, source-app. Currently all from SARTA. Needs components from every project.</div>
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-num">1</div>
+      <div class="layer-body">
+        <div class="layer-files"><span class="lf">sources/</span></div>
+        <div class="layer-name">Source Harvest</div>
+        <div class="layer-desc">Raw harvested reference sites via <code>jodl curate &lt;url&gt;</code>. Playwright-based screenshot + metadata extraction. Template in <code>sources/.template/</code>. Currently empty.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Pattern Promotion Path</h3>
+  <div class="code-block">
+<span class="cm"># A component's journey through the intelligence system:</span>
+
+source/<span class="ca">site-name</span>/   <span class="cm">← jodl curate https://example.com</span>
+    ↓ manual extraction
+registry/<span class="cv">components.json</span>  <span class="cm">← confidence: staging</span>
+    ↓ used in 2+ projects, rated ≥ 4 avg
+registry/<span class="cs">components.json</span>  <span class="cm">← confidence: proven (auto-search-boosted)</span>
+    ↓ deprecated: avg &lt; 2 after 3 uses
+registry/<span class="cm">components.json</span>  <span class="cm">← confidence: deprecated (hidden from results)</span>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: BRAIN MEMORY -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="memory">
+  <div class="sh"><span class="sn">08</span><h2>Brain Memory System</h2></div>
+
+  <p>
+    D:\.agents is a git-versioned memory store shared across ALL AI models. Every mistake, proven pattern,
+    and experiment is recorded here. This is what survives between sessions and prevents repeated mistakes.
+  </p>
+
+  <div class="grid2">
+    <div class="card" style="border-color:rgba(62,207,142,.2);">
+      <h3 style="color:var(--ok)">✅ Confidence Tiers</h3>
+      <ul>
+        <li><strong>experiments/</strong> — bold untested. Write BEFORE making the move.</li>
+        <li><strong>staging/</strong> — learned once, not proven. Write during session.</li>
+        <li><strong>patterns/</strong> — proven 2+ sessions or projects. Graduate from staging.</li>
+        <li><strong>mistakes/</strong> — confirmed failures. Never repeat. 1 occurrence is enough.</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(240,165,0,.2);">
+      <h3 style="color:var(--accent)">🔑 Integrity Rules</h3>
+      <ul>
+        <li>ALWAYS git commit D:\.agents after any write.</li>
+        <li>Never delete entries — set <code>confidence: deprecated</code>.</li>
+        <li>Wrong entry: <code>git log D:\.agents → git revert &lt;sha&gt;</code>.</li>
+        <li>Every entry requires frontmatter: confidence, date, project, sessions-validated.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Current Brain Contents</h3>
+  <table>
+    <thead><tr><th>Tier</th><th>Entry</th><th>What it records</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag-err">MISTAKE</span></td><td><code>gstack-fullstack-miss</code></td><td>Full-stack request → missed gstack skill routing</td></tr>
+      <tr><td><span class="tag-err">MISTAKE</span></td><td><code>baseurl-deprecated-ts6</code></td><td>TS6 bundler mode auto-infers baseUrl, needs ignoreDeprecations</td></tr>
+      <tr><td><span class="tag-err">MISTAKE</span></td><td><code>codex-react-anti-patterns</code></td><td>11 confirmed Codex output bugs that always need manual review</td></tr>
+      <tr><td><span class="tag-ok">PATTERN</span></td><td><code>vite-ts-path-aliases</code></td><td>@/ alias requires both vite.config.ts AND tsconfig.app.json</td></tr>
+      <tr><td><span class="tag-ok">PATTERN</span></td><td><code>feature-based-architecture</code></td><td>features/ + components/layout/ + components/ui/ + lib/ + types/ + data/</td></tr>
+      <tr><td><span class="tag-ok">PATTERN</span></td><td><code>products-type-extraction</code></td><td>Extract Product type to types/ then re-export from data/ for compat</td></tr>
+      <tr><td><span class="tag-ok">PATTERN</span></td><td><code>jodl-forge-phase0-scan</code></td><td>Always scan package.json + src/ before routing any skill</td></tr>
+      <tr><td><span class="tag-ok">PATTERN</span></td><td><code>model-routing-signals</code></td><td>Emit [MODEL] ↑/↓ tag when task complexity changes</td></tr>
+      <tr><td><span class="tag-warn">STAGING</span></td><td><code>lenis-version-windows-sqlite</code></td><td>lenis@^1.3.0 not 2.0; better-sqlite3 needs C++ build tools</td></tr>
+      <tr><td><span class="tag-warn">STAGING</span></td><td><code>jodl-bus-multi-provider</code></td><td>runClaude/Gemini/OpenAI + domain context scoping + pnpm allowBuilds fix</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: FILE SYSTEM -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="filesystem">
+  <div class="sh"><span class="sn">09</span><h2>File System Structure</h2></div>
+
+  <p>Two root directories form the complete system. <code>D:\.agents</code> is the shared brain + bus. <code>D:\jodl-workspace</code> is the monorepo with all apps + the CLI.</p>
+
+  <h3>D:\.agents — Shared Brain + Command Bus</h3>
+  <div class="tree">
+<span class="td">D:\.agents\</span>
+├── <span class="td tok">BRAIN.md</span>               <span class="tc"># master index — loaded every session</span>
+├── <span class="td tok">routing-matrix.yaml</span>    <span class="tc"># maps roles → providers + models</span>
+├── <span class="td tok">jodl-runbook.md</span>        <span class="tc"># protocol doc for all AI providers</span>
+│
+├── <span class="td tok">patterns\</span>
+│   ├── <span class="tf">vite-ts-path-aliases.md</span>
+│   ├── <span class="tf">feature-based-architecture.md</span>
+│   ├── <span class="tf">products-type-extraction.md</span>
+│   ├── <span class="tf">jodl-forge-phase0-scan.md</span>
+│   └── <span class="tf">model-routing-signals.md</span>
+│
+├── <span class="td tok">mistakes\</span>
+│   ├── <span class="tf">gstack-fullstack-miss.md</span>
+│   ├── <span class="tf">baseurl-deprecated-ts6.md</span>
+│   └── <span class="tf">codex-react-implementation-patterns.md</span>
+│
+├── <span class="td twarn">staging\</span>
+│   ├── <span class="tf">lenis-version-windows-sqlite.md</span>
+│   └── <span class="tf">jodl-bus-multi-provider.md</span>   <span class="tc"># Sprint 1 just added</span>
+│
+├── <span class="td">experiments\</span>                <span class="tc"># bold moves — write before the move</span>
+│
+├── <span class="td tok">models\</span>
+│   └── <span class="tf">capabilities.md</span>           <span class="tc"># model routing table</span>
+│
+├── <span class="td tok">projects\</span>
+│   ├── <span class="tf">SARTA.md</span>
+│   ├── <span class="tf">jodl-workspace.md</span>
+│   └── <span class="tf">...others</span>
+│
+├── <span class="td tok">handoffs\</span>
+│   └── <span class="tf">2026-05-27-sarta-redesign-antigravity.md</span>
+│
+├── <span class="td tok">provider-profiles\</span>
+│   ├── <span class="tf">claude-code.yaml</span>
+│   ├── <span class="tf">antigravity.yaml</span>
+│   └── <span class="tf">codex.yaml</span>
+│
+└── <span class="td tok">command-bus\</span>
+    ├── <span class="td">active\</span>
+    │   └── <span class="td tok">sess-87af32f2\</span>      <span class="tc"># proven session</span>
+    │       ├── <span class="tf">brief.md</span>
+    │       ├── <span class="tf">session.json</span>
+    │       └── <span class="td">tasks\</span>
+    │           ├── <span class="tf">done-a9f2c1ca.yaml</span>   <span class="tc"># design task done</span>
+    │           ├── <span class="tf">a9f2c1ca.out.md</span>     <span class="tc"># design spec output</span>
+    │           ├── <span class="tf">done-7f5fec23.yaml</span>   <span class="tc"># implementation done</span>
+    │           └── <span class="tf">7f5fec23.out.md</span>     <span class="tc"># full Zara store impl output</span>
+    └── <span class="td">done\</span>                       <span class="tc"># completed sessions archived here</span>
+  </div>
+
+  <h3>D:\jodl-workspace — Monorepo</h3>
+  <div class="tree">
+<span class="td">D:\jodl-workspace\</span>
+├── <span class="tf tok">pnpm-workspace.yaml</span>        <span class="tc"># workspace packages + allowBuilds</span>
+├── <span class="tf tok">turbo.json</span>                 <span class="tc"># build pipeline (build→typecheck→test)</span>
+│
+├── <span class="td tok">tools\jodl-cli\</span>            <span class="tc"># THE CLI — jodl command entry point</span>
+│   ├── <span class="td">src\</span>
+│   │   ├── <span class="tf tok">bus.ts</span>            <span class="tc"># core: sessions, tasks, lock, context</span>
+│   │   ├── <span class="tf tok">cli.ts</span>            <span class="tc"># commander entry, registers all commands</span>
+│   │   └── <span class="td">commands\</span>
+│   │       ├── <span class="tf tok">bus-commands.ts</span>  <span class="tc"># whoami, brief, next, status, claim, submit</span>
+│   │       ├── <span class="tf tok">agent.ts</span>         <span class="tc"># direct agent execution (non-bus)</span>
+│   │       ├── <span class="tf tok">watch.ts</span>         <span class="tc"># live terminal dashboard</span>
+│   │       ├── <span class="tf">curate.ts</span>        <span class="tc"># jodl curate: harvest reference sites</span>
+│   │       ├── <span class="tf">embed.ts</span>         <span class="tc"># rebuild embedding index</span>
+│   │       └── <span class="tf">vendor.ts</span>        <span class="tc"># extract app as standalone</span>
+│   └── <span class="tf">package.json</span>
+│       <span class="tc"># deps: @anthropic-ai/sdk, @google/genai, openai, chalk, commander</span>
+│
+├── <span class="td tok">packages\jodl-system\</span>      <span class="tc"># intelligence layer</span>
+│   ├── <span class="td">src\</span>
+│   │   ├── <span class="tf tok">search.ts</span>         <span class="tc"># Phase 1 keyword search + compose()</span>
+│   │   ├── <span class="tf tok">registry.ts</span>       <span class="tc"># load/save components.json</span>
+│   │   ├── <span class="tf tok">graph.ts</span>          <span class="tc"># pairings graph traversal</span>
+│   │   └── <span class="tf tok">feedback.ts</span>       <span class="tc"># rating + auto-deprecate</span>
+│   ├── <span class="td tok">agents\</span>
+│   │   ├── <span class="td tok">uiux-master\</span>       <span class="tc">system-prompt.md + knowledge-pack.md</span>
+│   │   ├── <span class="td tok">frontend-master\</span>   <span class="tc">system-prompt.md</span>
+│   │   ├── <span class="td tok">motion-master\</span>     <span class="tc">system-prompt.md</span>
+│   │   ├── <span class="td tok">typography-master\</span> <span class="tc">system-prompt.md</span>
+│   │   ├── <span class="td tok">backend-master\</span>    <span class="tc">system-prompt.md</span>
+│   │   ├── <span class="td tmiss">master-orchestrator\</span> <span class="tc">MISSING — uses generic fallback</span>
+│   │   └── <span class="td tmiss">design-orchestrator\</span> <span class="tc">MISSING — uses generic fallback</span>
+│   └── <span class="td">registry\</span>
+│       └── <span class="tf twarn">components.json</span>   <span class="tc">5 components (needs 30+)</span>
+│
+├── <span class="td tok">packages\</span>                  <span class="tc"># shared packages</span>
+│   ├── <span class="tf">jodl-tokens\</span>           <span class="tc"># design tokens (colors, typography, spacing, motion)</span>
+│   ├── <span class="tf">jodl-ui\</span>               <span class="tc"># shared UI components</span>
+│   ├── <span class="tf">jodl-motion\</span>           <span class="tc"># GSAP + Lenis utilities</span>
+│   ├── <span class="tf">jodl-typography\</span>       <span class="tc"># font pairings, reveal animations</span>
+│   ├── <span class="tf">jodl-hooks\</span>            <span class="tc"># shared React hooks</span>
+│   └── <span class="tf">jodl-patterns\</span>         <span class="tc"># reusable pattern components</span>
+│
+├── <span class="td tok">apps\sarta\</span>                <span class="tc"># luxury fashion store (proven, builds OK)</span>
+├── <span class="td tmiss">apps\creat-studio\</span>         <span class="tc">STUB — not scaffolded yet</span>
+└── <span class="td tmiss">apps\jodlxverse\</span>           <span class="tc">STUB — not scaffolded yet</span>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: GAPS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="gaps">
+  <div class="sh"><span class="sn">10</span><h2>Current Gaps &amp; Fixes</h2></div>
+
+  <h4>P1 — Blocking (system can't run without these)</h4>
+  <div class="gaps">
+    <div class="gap">
+      <div class="gap-dot gp1"></div>
+      <div class="gap-body">
+        <div class="gap-title">Orchestrator system prompts missing</div>
+        <div class="gap-desc">master-orchestrator, design-orchestrator, architecture-orchestrator, implementation-orchestrator, security-orchestrator, ship-orchestrator all fall back to generic one-liner. Without proper system prompts they won't output the correct JSON spawn-tasks block.</div>
+        <div class="gap-fix">→ Create packages/jodl-system/agents/master-orchestrator/system-prompt.md (and each domain orch)</div>
+      </div>
+      <div class="gap-label gl1">P1</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp1"></div>
+      <div class="gap-body">
+        <div class="gap-title">Gemini model IDs unverified</div>
+        <div class="gap-desc">routing-matrix.yaml uses "gemini-3.5-flash" — this model ID may not exist in the Google AI API. Need to verify against Google AI Studio and update to valid IDs (e.g. "gemini-2.0-flash", "gemini-1.5-flash").</div>
+        <div class="gap-fix">→ Check Google AI model list and update routing-matrix.yaml</div>
+      </div>
+      <div class="gap-label gl1">P1</div>
+    </div>
+  </div>
+
+  <h4>P2 — High (limits system effectiveness)</h4>
+  <div class="gaps">
+    <div class="gap">
+      <div class="gap-dot gp2"></div>
+      <div class="gap-body">
+        <div class="gap-title">Embedding layer missing (sqlite-vss blocked)</div>
+        <div class="gap-desc">The planned Phase 2 vector search uses sqlite-vss which requires C++ build tools (Visual Studio) on Windows. Better alternative: store embeddings in a .jsonl file using OpenAI embedding API. Cosine similarity in pure JS, no native deps.</div>
+        <div class="gap-fix">→ Implement jsonl-based embeddings in search.ts using openai.embeddings.create()</div>
+      </div>
+      <div class="gap-label gl2">P2</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp2"></div>
+      <div class="gap-body">
+        <div class="gap-title">Pattern registry has 5 components (needs 30+)</div>
+        <div class="gap-desc">The intelligence layer only knows 5 components, all from SARTA. The compose() and search() functions return empty or thin results for anything outside SARTA's pattern set. Every new project adds components but they haven't been curated.</div>
+        <div class="gap-fix">→ Run jodl curate on 5+ reference sites, extract 30+ components into registry</div>
+      </div>
+      <div class="gap-label gl2">P2</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp2"></div>
+      <div class="gap-body">
+        <div class="gap-title">Parallel group execution not automated</div>
+        <div class="gap-desc">Tasks with the same parallelGroup should fire simultaneously when their shared deps are done. Currently the bus only processes one task at a time per jodl next call. Need a loop mode or daemon watcher.</div>
+        <div class="gap-fix">→ Add jodl work --loop (runs next continuously until no tasks remain)</div>
+      </div>
+      <div class="gap-label gl2">P2</div>
+    </div>
+  </div>
+
+  <h4>P3 — Medium (polish + reliability)</h4>
+  <div class="gaps">
+    <div class="gap">
+      <div class="gap-dot gp3"></div>
+      <div class="gap-body">
+        <div class="gap-title">README commands are stale</div>
+        <div class="gap-desc">The monorepo README still references old pnpm run commands from pre-Turbo setup. New commands: pnpm jodl brief/next/status.</div>
+        <div class="gap-fix">→ Update docs/README.md with current command reference</div>
+      </div>
+      <div class="gap-label gl3">P3</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp3"></div>
+      <div class="gap-body">
+        <div class="gap-title">Knowledge packs missing for most agents</div>
+        <div class="gap-desc">Only uiux-master has a knowledge-pack.md. All other agents rely solely on system-prompt.md. Domain-specific reference docs (CSS patterns, security checklists, deploy runbooks) would dramatically improve output quality.</div>
+        <div class="gap-fix">→ Write knowledge-pack.md for each leaf agent role</div>
+      </div>
+      <div class="gap-label gl3">P3</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp3"></div>
+      <div class="gap-body">
+        <div class="gap-title">creat-studio and jodlxverse apps not scaffolded</div>
+        <div class="gap-desc">apps/creat-studio and apps/jodlxverse are stub directories in the monorepo with no content. They were declared in the workspace but never built out.</div>
+        <div class="gap-fix">→ Scaffold with pnpm create vite or copy from sarta base</div>
+      </div>
+      <div class="gap-label gl3">P3</div>
+    </div>
+  </div>
+
+  <h4>P4 — Nice to have</h4>
+  <div class="gaps">
+    <div class="gap">
+      <div class="gap-dot gp4"></div>
+      <div class="gap-body">
+        <div class="gap-title">Web dashboard for session monitoring</div>
+        <div class="gap-desc">Currently jodl watch shows a terminal table. A browser-based dashboard showing the DAG of tasks, live progress, and per-provider status would make the system much more observable.</div>
+        <div class="gap-fix">→ Build a simple Express + SSE server, React dashboard in apps/jodl-dashboard</div>
+      </div>
+      <div class="gap-label gl4">P4</div>
+    </div>
+    <div class="gap">
+      <div class="gap-dot gp4"></div>
+      <div class="gap-body">
+        <div class="gap-title">Cost tracking per session</div>
+        <div class="gap-desc">No token/cost tracking across providers. For production use you want to know how much a session cost across all 3 providers (Claude Opus is expensive, GPT-5 is expensive).</div>
+        <div class="gap-fix">→ Track tokens in done-*.yaml, aggregate with jodl status --cost</div>
+      </div>
+      <div class="gap-label gl4">P4</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: ROADMAP -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="roadmap">
+  <div class="sh"><span class="sn">11</span><h2>Production Roadmap</h2></div>
+
+  <div class="sprint">
+    <div class="sprint-head">
+      <span class="sprint-n">SPRINT 1</span>
+      <span class="sprint-title">Multi-Provider Execution</span>
+      <span class="tag-ok" style="margin-left:auto;">✅ DONE</span>
+    </div>
+    <div class="sprint-body">
+      <div class="sprint-item">runClaude / runGemini / runOpenAI provider runners in bus-commands.ts</div>
+      <div class="sprint-item">next() branches on assignedProvider — antigravity + codex auto-execute</div>
+      <div class="sprint-item">whoami shows all 3 API key statuses</div>
+      <div class="sprint-item">--force-reclaim to unstick stuck claimed tasks</div>
+      <div class="sprint-item">domainForRole() + loadSessionContext(domain) — scoped context injection</div>
+      <div class="sprint-item">@google/genai added to jodl-cli deps; pnpm allowBuilds configured</div>
+    </div>
+  </div>
+
+  <div class="sprint">
+    <div class="sprint-head">
+      <span class="sprint-n">SPRINT 2</span>
+      <span class="sprint-title">Orchestrator System Prompts + Model Verification</span>
+      <span class="tag-warn" style="margin-left:auto;">NEXT</span>
+    </div>
+    <div class="sprint-body">
+      <div class="sprint-item">Write system-prompt.md for all 6 orchestrator roles (spawn-tasks JSON format enforcement)</div>
+      <div class="sprint-item">Verify Gemini model IDs against Google AI API — fix routing-matrix.yaml</div>
+      <div class="sprint-item">Add jodl work --loop (continuous execution until queue empty)</div>
+      <div class="sprint-item">Test first fully-automated 3-provider session end-to-end</div>
+    </div>
+  </div>
+
+  <div class="sprint">
+    <div class="sprint-head">
+      <span class="sprint-n">SPRINT 3</span>
+      <span class="sprint-title">Intelligence Layer &amp; Registry Growth</span>
+      <span class="tag-warn" style="margin-left:auto;">PLANNED</span>
+    </div>
+    <div class="sprint-body">
+      <div class="sprint-item">Implement embedding index using OpenAI API + JSONL vectors (no native deps)</div>
+      <div class="sprint-item">Grow registry to 30+ components via jodl curate on 5+ reference sites</div>
+      <div class="sprint-item">Write knowledge-pack.md for frontend-master, architect, schema-master, backend-master</div>
+      <div class="sprint-item">Update README with current command reference</div>
+    </div>
+  </div>
+
+  <div class="sprint">
+    <div class="sprint-head">
+      <span class="sprint-n">SPRINT 4</span>
+      <span class="sprint-title">App Scaffolding + Dashboard</span>
+      <span class="tag-warn" style="margin-left:auto;">PLANNED</span>
+    </div>
+    <div class="sprint-body">
+      <div class="sprint-item">Scaffold creat-studio app (existing UI at create-studio-beta.vercel.app)</div>
+      <div class="sprint-item">Scaffold jodlxverse app</div>
+      <div class="sprint-item">Web dashboard for session DAG + live provider status</div>
+      <div class="sprint-item">Token/cost tracking per session and per provider</div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 12: HOW TO RUN -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="runbook">
+  <div class="sh"><span class="sn">12</span><h2>How to Run — Operational Runbook</h2></div>
+
+  <div class="callout">
+    <p><strong>Prerequisite:</strong> At least one API key set. Claude requires <code>ANTHROPIC_API_KEY</code>.
+    For full multi-provider runs, also set <code>GOOGLE_API_KEY</code> and <code>OPENAI_API_KEY</code>.</p>
+  </div>
+
+  <h3>Step 1 — Set your provider identity</h3>
+  <div class="code-block">
+<span class="cm"># In PowerShell (Windows):</span>
+$env:<span class="ca">JODL_PROVIDER</span> = <span class="cs">"claude-code"</span>    <span class="cm"># or: antigravity | codex</span>
+$env:<span class="ca">ANTHROPIC_API_KEY</span> = <span class="cs">"sk-ant-..."</span>
+$env:<span class="ca">GOOGLE_API_KEY</span> = <span class="cs">"AIza..."</span>        <span class="cm"># for Gemini tasks</span>
+$env:<span class="ca">OPENAI_API_KEY</span> = <span class="cs">"sk-..."</span>          <span class="cm"># for GPT tasks</span>
+
+<span class="cm"># Verify:</span>
+pnpm jodl whoami
+  </div>
+
+  <h3>Step 2 — Submit a brief</h3>
+  <div class="code-block">
+<span class="cm"># Any provider can submit a brief:</span>
+pnpm jodl brief <span class="cs">"Build a dashboard for analytics with charts, filter, export"</span>
+
+<span class="cm"># Skip research phase for faster prototypes:</span>
+pnpm jodl brief --skip-research <span class="cs">"Quick prototype: login form"</span>
+
+<span class="cm"># Output: session ID + master-orchestrator task created</span>
+<span class="cm"># 📋 Session sess-a1b2c3d4 created</span>
+<span class="cm"># ✓ Master orchestrator task spawned</span>
+  </div>
+
+  <h3>Step 3 — Run your next task (auto)</h3>
+  <div class="code-block">
+<span class="cm"># The bus finds the next pending task for YOUR provider:</span>
+pnpm jodl next
+
+<span class="cm"># See what's waiting without claiming:</span>
+pnpm jodl next --dry-run
+
+<span class="cm"># Limit to one session:</span>
+pnpm jodl next --session-id sess-a1b2c3d4
+
+<span class="cm"># ✓ Claimed. 🤖 Running claude-code agent (claude-opus-4-7)...</span>
+<span class="cm"># [streams output to terminal]</span>
+<span class="cm"># ✓ Task done. 🌱 Spawned 5 child task(s).</span>
+  </div>
+
+  <h3>Step 4 — Check queue status</h3>
+  <div class="code-block">
+pnpm jodl status
+<span class="cm"># Shows all sessions, tasks by status (pending/claimed/done), which provider owns each</span>
+
+pnpm jodl watch
+<span class="cm"># Live terminal dashboard (run in a dedicated terminal window)</span>
+  </div>
+
+  <h3>Manual flow (for when API auto-run isn't available)</h3>
+  <div class="code-block">
+<span class="cm"># 1. Claim a specific task (prints the brief for you to paste into your AI):</span>
+pnpm jodl claim <span class="ca">a1b2c3d4</span>
+
+<span class="cm"># 2. Copy the printed brief → paste into Claude.ai / Gemini / ChatGPT</span>
+<span class="cm"># 3. Copy the output to a file:</span>
+<span class="cm">#    output.md</span>
+
+<span class="cm"># 4. Submit the output:</span>
+pnpm jodl submit <span class="ca">a1b2c3d4</span> -f output.md
+
+<span class="cm"># Or paste from stdin:</span>
+pnpm jodl submit <span class="ca">a1b2c3d4</span>
+<span class="cm"># (paste output, press Ctrl+Z + Enter on Windows to finish)</span>
+  </div>
+
+  <h3>Emergency recovery</h3>
+  <div class="code-block">
+<span class="cm"># Task stuck in "claimed" (execution died mid-run):</span>
+pnpm jodl next --force-reclaim <span class="ca">a1b2c3d4</span>
+<span class="cm"># Renames claimed-*-a1b2c3d4.yaml → pending-a1b2c3d4.yaml</span>
+
+<span class="cm"># Wrong brain entry? Undo it:</span>
+cd D:\.agents
+git log --oneline -10
+git revert <span class="ca">&lt;sha&gt;</span>
+  </div>
+
+  <h3>Multi-provider parallel session (full power)</h3>
+  <div class="code-block">
+<span class="cm"># Terminal 1 (Claude):</span>
+$env:<span class="ca">JODL_PROVIDER</span> = <span class="cs">"claude-code"</span>; pnpm jodl next
+
+<span class="cm"># Terminal 2 (Gemini — needs GOOGLE_API_KEY set):</span>
+$env:<span class="ca">JODL_PROVIDER</span> = <span class="cs">"antigravity"</span>; pnpm jodl next
+
+<span class="cm"># Terminal 3 (GPT — needs OPENAI_API_KEY set):</span>
+$env:<span class="ca">JODL_PROVIDER</span> = <span class="cs">"codex"</span>; pnpm jodl next
+
+<span class="cm"># Terminal 4 (monitor):</span>
+pnpm jodl watch
+
+<span class="cm"># Each terminal runs its provider's tasks. Parallel groups execute simultaneously.</span>
+<span class="cm"># The bus handles races with atomic rename — no coordination needed.</span>
+  </div>
+
+</section>
+
+</main>
 </div>
 
 <script>
-  // Highlight active nav section on scroll
-  const sections = document.querySelectorAll('.section');
-  const navLinks = document.querySelectorAll('.topnav a, .sidebar-link');
+// Active nav + sidebar tracking
+const sections = document.querySelectorAll('.section');
+const topLinks = document.querySelectorAll('.topbar a[href^="#"]');
+const sbLinks  = document.querySelectorAll('.sb-link');
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        const id = e.target.id;
-        navLinks.forEach(a => {
-          a.classList.toggle('active', a.getAttribute('href') === '#' + id);
-        });
-      }
-    });
-  }, { rootMargin: '-40% 0px -55% 0px' });
-
-  sections.forEach(s => observer.observe(s));
-
-  // Smooth scroll
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      const target = document.querySelector(a.getAttribute('href'));
-      if (target) target.scrollIntoView({ behavior: 'smooth' });
-    });
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = '#' + e.target.id;
+      topLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+      sbLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+    }
   });
-</script>
+}, { rootMargin: '-20% 0px -75% 0px' });
 
+sections.forEach(s => obs.observe(s));
+</script>
 </body>
 </html>
