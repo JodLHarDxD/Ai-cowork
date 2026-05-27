@@ -1,11 +1,13 @@
 :root {
-  --bg: #080808;         /* Midnight deep luxury dark */
-  --bg-dark: #020202;
-  --cream: #141414;      /* Luxurious secondary dark dark */
-  --ink: #f5f3ef;        /* Linen warm white */
-  --muted: #8b8580;      /* Muted secondary gray */
+  /* ── LIGHT PAGE DEFAULTS (Shop, PDP, About) ──────────────────────────── */
+  --bg: #fff;
+  --bg-dark: #f5f5f5;
+  --cream: #faf9f7;
+  --ink: #000;
+  --muted: #666;
+  --line: #e5e5e5;
+  /* ── SHARED (accent, type, motion) ───────────────────────────────────── */
   --accent: #d4b26f;     /* Sophisticated warm gold/bronze */
-  --line: rgba(245, 243, 239, 0.08); /* Sophisticated subtle dividing line */
   --serif: "Bodoni Moda", "Playfair Display", Georgia, serif;
   --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -24,10 +26,10 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: #f0f0f0;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: #ccc;
   border-radius: 99px;
   transition: background 0.3s;
 }
@@ -37,7 +39,10 @@
 
 html {
   scroll-behavior: auto;
-  background-color: var(--bg);
+  background-color: #fff;
+  /* clip (not hidden) — prevents horizontal scroll without creating scroll container,
+     which allows Lenis to operate on window as intended */
+  overflow-x: clip;
 }
 
 html.lenis,
@@ -54,11 +59,26 @@ body {
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.6;
-  color: var(--ink);
-  background: var(--bg);
+  /* Light base — dark tokens live inside .home override below */
+  color: #000;
+  background: #fff;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+}
+
+/* ── HOME PAGE DARK EDITORIAL THEME ─────────────────────────────────────────
+   All Home.css sections use CSS variables. Re-bind them to dark values inside
+   .home so every var(--bg), var(--ink), var(--cream), var(--line) still resolves
+   to the original dark luxury values within the home page context.
+   Outside .home (Shop, PDP, Cart, About) the light body defaults apply.
+──────────────────────────────────────────────────────────────────────────── */
+.home {
+  --bg: #080808;
+  --bg-dark: #020202;
+  --cream: #141414;
+  --ink: #f5f3ef;
+  --muted: #8b8580;
+  --line: rgba(245, 243, 239, 0.08);
 }
 
 /* Hide default cursor if custom cursor is active */
@@ -74,10 +94,15 @@ body {
 }
 
 html.loaded body {
-  overflow-x: hidden;
+  /* clip, not hidden — avoids creating a scroll container that breaks Lenis */
+  overflow-x: clip;
 }
 
 /* Dynamic Film Grain Noise Overlay */
+@media (prefers-reduced-motion: reduce) {
+  .noise-overlay { animation: none; }
+}
+
 .noise-overlay {
   position: fixed;
   top: -50%;

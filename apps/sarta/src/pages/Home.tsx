@@ -73,6 +73,12 @@ export function Home() {
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
   const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
+  // Signal dark video-hero context to Header so it uses white text
+  useEffect(() => {
+    document.body.classList.add("page-home");
+    return () => document.body.classList.remove("page-home");
+  }, []);
+
   useEffect(() => {
     const hero = heroRef.current;
     if (!hero) return;
@@ -144,7 +150,7 @@ export function Home() {
     });
 
     return () => {
-      ScrollTrigger.getAll().forEach((t) => t.kill());
+      tl.kill(); // only kill this timeline's ScrollTrigger, not all global ones
     };
   }, []);
 

@@ -105,20 +105,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [items],
   );
 
+  const openCart = useCallback(() => setIsOpen(true), []);
+  const closeCart = useCallback(() => setIsOpen(false), []);
+
   const value = useMemo(
     () => ({
       items,
       count,
       subtotal,
       isOpen,
-      openCart: () => setIsOpen(true),
-      closeCart: () => setIsOpen(false),
+      openCart,
+      closeCart,
       addItem,
       removeItem,
       updateQuantity,
       clearCart,
     }),
-    [items, count, subtotal, isOpen, addItem, removeItem, updateQuantity, clearCart],
+    [items, count, subtotal, isOpen, openCart, closeCart, addItem, removeItem, updateQuantity, clearCart],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

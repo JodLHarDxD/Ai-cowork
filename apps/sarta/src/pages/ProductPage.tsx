@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { ProductCard } from "../components/ProductCard";
 import { useCart } from "../context/CartContext";
 import { formatPrice, getProductBySlug, products } from "../data/products";
-import { ProductCard } from "../components/ProductCard";
 import "./ProductPage.css";
 
 export function ProductPage() {
@@ -14,15 +14,26 @@ export function ProductPage() {
   const [color, setColor] = useState("");
   const [activeImage, setActiveImage] = useState(0);
 
+  // Reset selections when navigating between products
+  useEffect(() => {
+    setSize("");
+    setColor("");
+    setActiveImage(0);
+  }, [slug]);
+
   if (!product) {
     return <Navigate to="/shop" replace />;
   }
 
   const related = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
+    .filter((item) => item.category === product.category && item.id !== product.id)
     .slice(0, 4);
 
+  const gallery = product.gallery.length > 0 ? product.gallery : [product.image];
+
   const handleAdd = () => {
+    // Guard: product must have at least one size and color
+    if (!product.sizes.length || !product.colors.length) return;
     const selectedSize = size || product.sizes[0];
     const selectedColor = color || product.colors[0];
     addItem({
@@ -33,97 +44,70 @@ export function ProductPage() {
   };
 
   return (
-    <div className="pdp page page-enter" style={{ backgroundColor: "#ffffff" }}>
-      {/* ═══════════════════════════════════════════════════════════════
-          ZARA-STYLE LANDSCAPE POSTER HERO
-      ═══════════════════════════════════════════════════════════════ */}
-      <section className="zara-poster-hero">
-        <div className="zara-poster-hero__frame">
-          <img src={product.image} alt={product.name} className="zara-poster-hero__img" />
-          <div className="zara-poster-hero__logo">Sarta</div>
+    <main className="pdp page page-enter">
+      <section className="pdp__layout">
+        <div className="pdp__gallery" aria-label={`${product.name} gallery`}>
+          {gallery.map((src, index) => (
+            <button
+              key={index}
+              type="button"
+              className={`pdp__gallery-frame ${activeImage === index ? "is-active" : ""}`}
+              aria-label={index === 0 ? `View main image of ${product.name}` : `View image ${index + 1} of ${product.name}`}
+              aria-current={activeImage === index ? "true" : undefined}
+              onClick={() => setActiveImage(index)}
+            >
+              <img src={src} alt={index === 0 ? product.name : `${product.name} view ${index + 1}`} />
+            </button>
+          ))}
         </div>
 
-        <div className="zara-poster-hero__label-box">
-          <h2 className="zara-poster-hero__label-title">{product.category}</h2>
-          <p className="zara-poster-hero__label-subtitle">{product.tag || "LIMITED COLLECTION / DESIGN SERIES"}</p>
-        </div>
+        <aside className="pdp__info">
+          <nav className="pdp__crumb" aria-label="Breadcrumb">
+            <Link to="/shop">Shop</Link>
+            <span>/</span>
+            <Link to={`/shop?category=${product.category}`}>
+              {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+            </Link>
+          </nav>
 
-        <div className="zara-poster-hero__sidebar">
-          <div className="zara-poster-hero__sidebar-inner">
-            <span className="zara-poster-hero__sidebar-link">BAG</span>
-            <span className="zara-poster-hero__sidebar-link">LOG IN</span>
-            <span className="zara-poster-hero__sidebar-link">HELP</span>
-          </div>
-          <div className="zara-poster-hero__sidebar-arrow">→</div>
-        </div>
-      </section>
-
-      <div className="container pdp__crumb" style={{ paddingTop: '80px', color: "#000000" }}>
-        <Link to="/shop" style={{ color: "#000000" }}>Shop</Link>
-        <span>/</span>
-        <span>{product.name}</span>
-      </div>
-
-      <div className="container pdp__layout">
-        <div className="pdp__gallery">
-          <img
-            src={product.gallery[activeImage] ?? product.image}
-            alt={product.name}
-            className="pdp__main-img"
-          />
-          <div className="pdp__thumbs">
-            {product.gallery.map((src, index) => (
-              <button
-                key={src}
-                type="button"
-                className={activeImage === index ? "is-active" : ""}
-                onClick={() => setActiveImage(index)}
-              >
-                <img src={src} alt="" />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="pdp__info">
           {product.tag && <span className="pdp__tag">{product.tag}</span>}
-          <h1 className="display pdp__title">{product.name}</h1>
+          <h1 className="pdp__title">{product.name}</h1>
           <p className="pdp__price">{formatPrice(product.price)}</p>
           <p className="pdp__desc">{product.description}</p>
 
           <div className="pdp__option">
-            <p className="eyebrow">Color — {color || product.colors[0]}</p>
+            <p>Color / {color || product.colors[0]}</p>
             <div className="pdp__swatches">
-              {product.colors.map((c) => (
+              {product.colors.map((item) => (
                 <button
-                  key={c}
+                  key={item}
                   type="button"
-                  className={color === c || (!color && c === product.colors[0]) ? "is-active" : ""}
-                  onClick={() => setColor(c)}
+                  className={color === item || (!color && item === product.colors[0]) ? "is-active" : ""}
+                  onClick={() => setColor(item)}
                 >
-                  {c}
+                  {item}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="pdp__option">
-            <p className="eyebrow">Size</p>
+            <p>Size</p>
             <div className="pdp__sizes">
-              {product.sizes.map((s) => (
+              {product.sizes.map((item) => (
                 <button
-                  key={s}
+                  key={item}
                   type="button"
-                  className={size === s || (!size && s === product.sizes[0]) ? "is-active" : ""}
-                  onClick={() => setSize(s)}
+                  className={size === item || (!size && item === product.sizes[0]) ? "is-active" : ""}
+                  onClick={() => setSize(item)}
                 >
-                  {s}
+                  {item}
                 </button>
               ))}
             </div>
           </div>
 
-          <button type="button" className="btn btn--primary pdp__add" onClick={handleAdd}>
+          <button type="button" className="pdp__add" onClick={handleAdd}>
             Add to bag
           </button>
 
@@ -132,19 +116,19 @@ export function ProductPage() {
               <li key={line}>{line}</li>
             ))}
           </ul>
-        </div>
-      </div>
+        </aside>
+      </section>
 
       {related.length > 0 && (
-        <section className="container pdp__related">
-          <h2 className="display">You may also like</h2>
+        <section className="pdp__related">
+          <h2>Related pieces</h2>
           <div className="pdp__related-grid">
-            {related.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {related.map((item) => (
+              <ProductCard key={item.id} product={item} />
             ))}
           </div>
         </section>
       )}
-    </div>
+    </main>
   );
 }

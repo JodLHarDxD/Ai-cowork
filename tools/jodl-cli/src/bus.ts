@@ -79,6 +79,23 @@ export function routeFor(role: string): RouteEntry | null {
   return loadRoutingMatrix().get(role) ?? null;
 }
 
+export type TaskDomain = "design" | "architecture" | "implementation" | "security" | "ship" | "meta";
+
+/** Derive domain from role name — no extra YAML field needed. */
+export function domainForRole(role: string): TaskDomain {
+  const DESIGN = ["research-master", "uiux-master", "motion-master", "typography-master", "style-guide", "design-orchestrator"];
+  const ARCH   = ["architect", "schema-master", "database-master", "architecture-orchestrator"];
+  const IMPL   = ["frontend-master", "backend-master", "implementation-orchestrator"];
+  const SEC    = ["threat-modeler", "vuln-scanner", "pentest-simulator", "security-orchestrator"];
+  const SHIP   = ["reliability-master", "legal-master", "deploy-master", "ship-orchestrator"];
+  if (DESIGN.includes(role)) return "design";
+  if (ARCH.includes(role))   return "architecture";
+  if (IMPL.includes(role))   return "implementation";
+  if (SEC.includes(role))    return "security";
+  if (SHIP.includes(role))   return "ship";
+  return "meta"; // master-orchestrator + unknown
+}
+
 export interface TaskFile {
   id: string;
   sessionId: string;
@@ -264,13 +281,27 @@ export function findClaimedPath(taskId: string, provider: Provider): string | nu
   return null;
 }
 
-/** Read all done task outputs in a session — context for next agent. */
-export function loadSessionContext(sessionId: string): string {
+/**
+ * Read done task outputs in a session — context injected into next agent.
+ *
+ * `domain` scoping keeps context windows tight:
+ *   - undefined / "meta" → all done outputs (used by orchestrators)
+ *   - specific domain    → own-domain outputs + all orchestrator outputs
+ *
+ * This preserves cross-domain awareness for leaf agents (they see the
+ * orchestrator's plan) without drowning them in sibling-domain details.
+ */
+export function loadSessionContext(sessionId: string, domain?: TaskDomain): string {
   const tasks = listTasks(sessionId, "done");
   const dir = join(ACTIVE, sessionId, "tasks");
   const parts: string[] = [];
 
   for (const t of tasks) {
+    const taskDomain = domainForRole(t.task.role);
+    const isOrchestrator = t.task.role.endsWith("-orchestrator");
+    // Include if: no filter, meta domain, same domain, or any orchestrator output
+    if (domain && domain !== "meta" && taskDomain !== domain && !isOrchestrator) continue;
+
     const outPath = join(dir, `${t.task.id}.out.md`);
     if (!existsSync(outPath)) continue;
     parts.push(`## ${t.task.role} (task ${t.task.id})\n\nBrief: ${t.task.brief}\n\n---\n\n${readFileSync(outPath, "utf-8")}`);

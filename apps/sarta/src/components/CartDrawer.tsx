@@ -6,6 +6,7 @@ import "./CartDrawer.css";
 export function CartDrawer() {
   const {
     items,
+    count,
     subtotal,
     isOpen,
     closeCart,
@@ -23,10 +24,17 @@ export function CartDrawer() {
         aria-label="Close bag"
         onClick={closeCart}
       />
-      <aside className="cart-drawer" aria-label="Shopping bag">
+      <aside
+        className="cart-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-heading"
+      >
         <header className="cart-drawer__head">
-          <h2>Bag ({String(items.length).padStart(2, "0")})</h2>
-          <button type="button" onClick={closeCart} aria-label="Close">
+          <h2 id="cart-drawer-heading">
+            Bag ({String(count).padStart(2, "0")})
+          </h2>
+          <button type="button" onClick={closeCart} aria-label="Close bag">
             Close
           </button>
         </header>
@@ -55,6 +63,7 @@ export function CartDrawer() {
                     <div className="cart-drawer__qty">
                       <button
                         type="button"
+                        aria-label={`Decrease quantity of ${item.product.name}`}
                         onClick={() =>
                           updateQuantity(
                             item.product.id,
@@ -66,9 +75,12 @@ export function CartDrawer() {
                       >
                         −
                       </button>
-                      <span>{item.quantity}</span>
+                      <span aria-live="polite" aria-label={`Quantity: ${item.quantity}`}>
+                        {item.quantity}
+                      </span>
                       <button
                         type="button"
+                        aria-label={`Increase quantity of ${item.product.name}`}
                         onClick={() =>
                           updateQuantity(
                             item.product.id,
@@ -84,6 +96,7 @@ export function CartDrawer() {
                     <button
                       type="button"
                       className="cart-drawer__remove"
+                      aria-label={`Remove ${item.product.name} from bag`}
                       onClick={() =>
                         removeItem(item.product.id, item.size, item.color)
                       }

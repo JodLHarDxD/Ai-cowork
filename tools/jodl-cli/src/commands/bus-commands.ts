@@ -7,6 +7,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import chalk from "chalk";
@@ -25,6 +26,7 @@ import {
   findTaskById,
   findClaimedPath,
   loadSessionContext,
+  domainForRole,
   routeFor,
   type TaskFile,
 } from "../bus.js";
@@ -32,6 +34,105 @@ import {
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../..");
 const AGENTS_DIR = join(WORKSPACE_ROOT, "packages/jodl-system/agents");
 const PROFILES_DIR = "D:\\.agents\\provider-profiles";
+
+// ─── provider runners ────────────────────────────────────────────────────────
+
+/** Execute via Anthropic Claude (streaming). */
+async function runClaude(systemPrompt: string, brief: string, model: string): Promise<string> {
+  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
+
+  const client = new Anthropic({ apiKey });
+  const stream = client.messages.stream({
+    model,
+    max_tokens: 8192,
+    system: systemPrompt,
+    messages: [{ role: "user", content: brief }],
+  });
+
+  let output = "";
+  for await (const event of stream) {
+    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      process.stdout.write(event.delta.text);
+      output += event.delta.text;
+    }
+  }
+  const finalMsg = await stream.finalMessage();
+  console.log(chalk.gray(`\nTokens: ${finalMsg.usage.input_tokens} in / ${finalMsg.usage.output_tokens} out`));
+  return output;
+}
+
+/** Execute via Google Gemini (streaming). */
+async function runGemini(systemPrompt: string, brief: string, model: string): Promise<string> {
+  const apiKey = process.env["GOOGLE_API_KEY"] ?? process.env["GEMINI_API_KEY"];
+  if (!apiKey) throw new Error("GOOGLE_API_KEY (or GEMINI_API_KEY) not set");
+
+  // Dynamic import — @google/genai may not be installed yet; fail clearly
+  let GoogleGenAI: typeof import("@google/genai").GoogleGenAI;
+  try {
+    ({ GoogleGenAI } = await import("@google/genai"));
+  } catch {
+    throw new Error("@google/genai not installed. Run: pnpm add @google/genai --filter @jodl/cli");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContentStream({
+    model,
+    config: { systemInstruction: systemPrompt, maxOutputTokens: 8192 },
+    contents: [{ role: "user", parts: [{ text: brief }] }],
+  });
+
+  let output = "";
+  for await (const chunk of response) {
+    const text = chunk.text ?? "";
+    process.stdout.write(text);
+    output += text;
+  }
+  return output;
+}
+
+/** Execute via OpenAI GPT (streaming). */
+async function runOpenAI(systemPrompt: string, brief: string, model: string): Promise<string> {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY not set");
+
+  const client = new OpenAI({ apiKey });
+  const stream = await client.chat.completions.create({
+    model,
+    max_tokens: 8192,
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: brief },
+    ],
+  });
+
+  let output = "";
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content ?? "";
+    process.stdout.write(text);
+    output += text;
+  }
+  return output;
+}
+
+/** Dispatch to correct provider runner. Returns model output string. */
+async function executeTask(task: TaskFile, systemPrompt: string): Promise<string> {
+  const model = task.assignedModel ?? "claude-sonnet-4-6";
+  switch (task.assignedProvider) {
+    case "claude-code":
+      return runClaude(systemPrompt, task.brief, model);
+    case "antigravity":
+      return runGemini(systemPrompt, task.brief, model);
+    case "codex":
+      return runOpenAI(systemPrompt, task.brief, model);
+    default:
+      throw new Error(
+        `Unknown provider "${task.assignedProvider}" — no auto-runner. ` +
+        `Use: jodl claim ${task.id}  then paste into your AI  then: jodl submit ${task.id}`
+      );
+  }
+}
 
 // ─── whoami ─────────────────────────────────────────────────────────────────
 
@@ -53,9 +154,20 @@ function whoami(): void {
   const profilePath = join(PROFILES_DIR, `${provider}.yaml`);
   const profileExists = existsSync(profilePath);
 
+  const keys = {
+    "ANTHROPIC_API_KEY":          { label: "Claude (claude-code)", present: !!process.env["ANTHROPIC_API_KEY"] },
+    "GOOGLE_API_KEY / GEMINI_API_KEY": { label: "Gemini (antigravity)", present: !!(process.env["GOOGLE_API_KEY"] ?? process.env["GEMINI_API_KEY"]) },
+    "OPENAI_API_KEY":              { label: "GPT (codex)",         present: !!process.env["OPENAI_API_KEY"] },
+  };
+
   console.log(chalk.bold(`\n👤 Provider: ${chalk.cyan(provider)}`));
   console.log(`   Profile:  ${profileExists ? chalk.green("✓ " + profilePath) : chalk.yellow("✗ not declared — paste PROVIDER_INTRO.md to your AI first")}`);
-  console.log(`   API key:  ${process.env["ANTHROPIC_API_KEY"] ? chalk.green("✓ ANTHROPIC_API_KEY set") : chalk.yellow("✗ ANTHROPIC_API_KEY missing (Claude tasks will fail)")}`);
+  console.log(`   API keys:`);
+  for (const [key, info] of Object.entries(keys)) {
+    const status = info.present ? chalk.green(`✓`) : chalk.yellow(`✗`);
+    const label  = info.present ? chalk.green(info.label) : chalk.yellow(`${info.label} (${key} missing)`);
+    console.log(`     ${status} ${label}`);
+  }
 
   const sessions = listActiveSessions();
   console.log(`   Active sessions: ${sessions.length}`);
@@ -167,8 +279,33 @@ function spawnFromParsed(sessionId: string, parentTaskId: string, parsed: { "spa
 
 // ─── next ───────────────────────────────────────────────────────────────────
 
-async function next(opts: { sessionId?: string; dryRun?: boolean }): Promise<void> {
+async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?: string }): Promise<void> {
   const provider = getProvider();
+
+  // --force-reclaim <taskId>: rename claimed-<X>-<id> → pending-<id> so it can be re-picked
+  if (opts.forceReclaim) {
+    const { renameSync, readdirSync: rd } = await import("fs");
+    const { join: pjoin } = await import("path");
+    const { ACTIVE } = await import("../bus.js");
+    const { listActiveSessions: las } = await import("../bus.js");
+    for (const s of las()) {
+      const dir = pjoin(ACTIVE, s.id, "tasks");
+      try {
+        for (const f of rd(dir)) {
+          if (f.includes(opts.forceReclaim) && f.startsWith("claimed-")) {
+            const oldPath = pjoin(dir, f);
+            const newPath = pjoin(dir, `pending-${opts.forceReclaim}.yaml`);
+            renameSync(oldPath, newPath);
+            console.log(chalk.green(`✓ Reclaimed: ${opts.forceReclaim} → pending`));
+            return;
+          }
+        }
+      } catch {}
+    }
+    console.error(chalk.red(`✗ Task ${opts.forceReclaim} not found in claimed state.\n`));
+    process.exit(1);
+  }
+
   const found = findNextTask(provider, opts.sessionId);
 
   if (!found) {
@@ -193,56 +330,59 @@ async function next(opts: { sessionId?: string; dryRun?: boolean }): Promise<voi
   }
   console.log(chalk.green(`\n✓ Claimed.`));
 
-  // Execute via agent runner
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
-  if (!apiKey) {
-    console.error(chalk.red("\nANTHROPIC_API_KEY missing — cannot execute Claude tasks."));
-    console.error(chalk.gray("Task remains claimed. Set key and re-run: jodl next --force-reclaim\n"));
-    process.exit(1);
-  }
-
+  // Load system prompt (fallback to generic if not defined)
   const systemPromptPath = join(AGENTS_DIR, found.task.role, "system-prompt.md");
-  let systemPrompt = "";
-  if (existsSync(systemPromptPath)) {
-    systemPrompt = readFileSync(systemPromptPath, "utf-8");
-  } else {
-    systemPrompt = `You are the ${found.task.role} agent in the jodl-orchestration system.`;
-  }
+  let systemPrompt = existsSync(systemPromptPath)
+    ? readFileSync(systemPromptPath, "utf-8")
+    : `You are the ${found.task.role} agent in the jodl-orchestration system.`;
 
-  const sessionContext = loadSessionContext(found.sessionId);
+  // Domain-scoped context: orchestrators get all, leaf agents get own domain + orch outputs
+  const taskDomain = domainForRole(found.task.role);
+  const sessionContext = loadSessionContext(found.sessionId, taskDomain);
   const fullSystem = sessionContext
     ? `${systemPrompt}\n\n---\n\n## Prior session outputs\n\n${sessionContext}`
     : systemPrompt;
 
-  console.log(chalk.bold(`\n🤖 Running agent...\n`));
+  const taskWithFullSystem: TaskFile = { ...found.task, brief: found.task.brief };
+
+  console.log(chalk.bold(`\n🤖 Running ${chalk.cyan(found.task.assignedProvider)} agent (${found.task.assignedModel ?? "default model"})...\n`));
   console.log(chalk.bold("─".repeat(60)));
 
-  const client = new Anthropic({ apiKey });
-  const model = found.task.assignedModel ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
-
-  const stream = client.messages.stream({
-    model,
-    max_tokens: 8192,
-    system: fullSystem,
-    messages: [{ role: "user", content: found.task.brief }],
-  });
-
-  let output = "";
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      process.stdout.write(event.delta.text);
-      output += event.delta.text;
+  let output: string;
+  try {
+    // executeTask uses the stored model but passes fullSystem as systemPrompt
+    const model = found.task.assignedModel ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
+    switch (found.task.assignedProvider) {
+      case "claude-code":
+        output = await runClaude(fullSystem, found.task.brief, model);
+        break;
+      case "antigravity":
+        output = await runGemini(fullSystem, found.task.brief, model);
+        break;
+      case "codex":
+        output = await runOpenAI(fullSystem, found.task.brief, model);
+        break;
+      default: {
+        // Unknown provider — print brief for manual copy-paste
+        console.log(chalk.yellow(`\n⚠ No auto-runner for provider "${found.task.assignedProvider}".`));
+        console.log(chalk.gray(`  Task is claimed. Use: ${chalk.cyan(`jodl submit ${found.task.id} -f <output-file>`)}\n`));
+        return;
+      }
     }
+  } catch (err) {
+    console.error(chalk.bold("\n─".repeat(60)));
+    console.error(chalk.red(`\n✗ Execution failed: ${err instanceof Error ? err.message : err}`));
+    console.error(chalk.gray(`  Task remains claimed at: ${claimedPath}`));
+    console.error(chalk.gray(`  Fix the error then run: jodl submit ${found.task.id} -f <output-file>\n`));
+    process.exit(1);
   }
-  console.log("\n" + chalk.bold("─".repeat(60)));
 
-  const finalMsg = await stream.finalMessage();
-  console.log(chalk.gray(`\nTokens: ${finalMsg.usage.input_tokens} in / ${finalMsg.usage.output_tokens} out`));
+  console.log("\n" + chalk.bold("─".repeat(60)));
 
   markTaskDone(claimedPath, output);
   console.log(chalk.green(`✓ Task done.`));
 
-  // If this was an orchestrator (master or domain), parse spawn-tasks JSON and create children
+  // Orchestrators parse spawn-tasks JSON and create children
   if (found.task.role.endsWith("-orchestrator")) {
     const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
     if (spawned > 0) {
@@ -424,7 +564,8 @@ export function registerBusCommands(program: Command): void {
     .description("Claim + run next task for your provider")
     .option("-s, --session-id <id>", "Limit to a specific session")
     .option("--dry-run", "Show next task without claiming")
-    .action(async (opts: { sessionId?: string; dryRun?: boolean }) => {
+    .option("--force-reclaim <taskId>", "Reset a stuck claimed task back to pending")
+    .action(async (opts: { sessionId?: string; dryRun?: boolean; forceReclaim?: string }) => {
       await next(opts);
     });
 

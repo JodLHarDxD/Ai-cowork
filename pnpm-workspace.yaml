@@ -3,5 +3,7 @@ packages:
   - "apps/*"
   - "tools/*"
 allowBuilds:
+  '@google/genai': true
   better-sqlite3: false
   esbuild: true
+  protobufjs: true
