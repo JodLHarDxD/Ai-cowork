@@ -9,10 +9,11 @@ import { readFileSync, writeFileSync, readdirSync, renameSync, existsSync, mkdir
 import { join } from "path";
 import { randomBytes } from "crypto";
 
-export const BUS_ROOT = "D:\\.agents\\command-bus";
+export const BUS_ROOT  = "D:\\.agents\\command-bus";
+export const BRAIN_ROOT = "D:\\.agents";
 export const INBOX = join(BUS_ROOT, "inbox");
 export const ACTIVE = join(BUS_ROOT, "active");
-export const DONE = join(BUS_ROOT, "done");
+export const DONE   = join(BUS_ROOT, "done");
 
 export type Provider = "claude-code" | "antigravity" | "codex" | string;
 export type TaskStatus = "pending" | "claimed" | "done";
@@ -308,6 +309,39 @@ export function loadSessionContext(sessionId: string, domain?: TaskDomain): stri
   }
 
   return parts.join("\n\n---\n\n");
+}
+
+// ─── brain context ───────────────────────────────────────────────────────────
+
+/**
+ * Load accumulated team knowledge (mistakes + patterns + staging) for injection
+ * into every agent's system prompt.
+ *
+ * This is the fix for the "Lenis / overflow-x: hidden" class of bug: agents
+ * running via API never saw D:\.agents\ — they only got task outputs. Now they
+ * get the full mistake checklist and proven patterns before they write a line.
+ */
+export function loadBrainContext(): string {
+  const sections: string[] = [];
+
+  const loadDir = (dir: string, label: string): void => {
+    if (!existsSync(dir)) return;
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".md") && f !== "README.md")
+      .sort();
+    const entries = files
+      .map((f) => readFileSync(join(dir, f), "utf-8").trim())
+      .filter(Boolean);
+    if (entries.length === 0) return;
+    sections.push(`### ${label}\n\n${entries.join("\n\n---\n\n")}`);
+  };
+
+  loadDir(join(BRAIN_ROOT, "mistakes"), "Confirmed Mistakes — never repeat these");
+  loadDir(join(BRAIN_ROOT, "patterns"), "Proven Patterns — reuse directly");
+  loadDir(join(BRAIN_ROOT, "staging"), "Staging — likely true, 1 session validated");
+
+  if (sections.length === 0) return "";
+  return `## Shared Brain — Team Knowledge\n\n${sections.join("\n\n---\n\n")}`;
 }
 
 // ─── yaml (minimal — no deps) ───────────────────────────────────────────────

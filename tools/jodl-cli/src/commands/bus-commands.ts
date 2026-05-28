@@ -26,6 +26,7 @@ import {
   findTaskById,
   findClaimedPath,
   loadSessionContext,
+  loadBrainContext,
   domainForRole,
   routeFor,
   type TaskFile,
@@ -339,9 +340,13 @@ async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?:
   // Domain-scoped context: orchestrators get all, leaf agents get own domain + orch outputs
   const taskDomain = domainForRole(found.task.role);
   const sessionContext = loadSessionContext(found.sessionId, taskDomain);
-  const fullSystem = sessionContext
-    ? `${systemPrompt}\n\n---\n\n## Prior session outputs\n\n${sessionContext}`
-    : systemPrompt;
+  const brainContext = loadBrainContext();
+
+  const fullSystem = [
+    systemPrompt,
+    brainContext   ? `---\n\n${brainContext}`                               : null,
+    sessionContext ? `---\n\n## Prior session outputs\n\n${sessionContext}` : null,
+  ].filter(Boolean).join("\n\n");
 
   const taskWithFullSystem: TaskFile = { ...found.task, brief: found.task.brief };
 
@@ -457,7 +462,9 @@ function claimManual(taskId: string): void {
   }
 
   const systemPromptPath = join(AGENTS_DIR, found.task.role, "system-prompt.md");
-  const sessionContext = loadSessionContext(found.sessionId);
+  const taskDomain = domainForRole(found.task.role);
+  const sessionContext = loadSessionContext(found.sessionId, taskDomain);
+  const brainContext = loadBrainContext();
 
   console.log(chalk.bold(`\n✓ Claimed: ${chalk.cyan(found.task.id)}`));
   console.log(chalk.gray(`   session: ${found.sessionId}`));
@@ -468,6 +475,10 @@ function claimManual(taskId: string): void {
     console.log(readFileSync(systemPromptPath, "utf-8"));
   } else {
     console.log(`You are the ${found.task.role} agent in the jodl-orchestration system.`);
+  }
+  if (brainContext) {
+    console.log(chalk.bold("\n─── SHARED BRAIN (mistakes + patterns) ─────────────────────────────────────"));
+    console.log(brainContext);
   }
   if (sessionContext) {
     console.log(chalk.bold("\n─── PRIOR SESSION OUTPUTS ──────────────────────────────────────────────────"));
