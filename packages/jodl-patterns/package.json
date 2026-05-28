@@ -22,7 +22,10 @@
     "./editorial": {
       "import": "./dist/editorial.js",
       "types": "./dist/editorial.d.ts"
-    }
+    },
+    "./dist/index.css": "./dist/index.css",
+    "./dist/ecommerce.css": "./dist/ecommerce.css",
+    "./dist/editorial.css": "./dist/editorial.css"
   },
   "scripts": {
     "build": "tsup",

@@ -226,7 +226,7 @@
   border: 1px solid var(--pdp-line);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 768px) {
   .pdp__layout {
     grid-template-columns: 1fr;
   }
