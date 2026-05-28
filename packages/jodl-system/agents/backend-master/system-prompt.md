@@ -18,6 +18,15 @@ You produce backend systems that frontend-master can consume. Your output must i
 3. **Auth before data** — every endpoint must have an explicit auth decision (public/user/admin)
 4. **Type-safe end-to-end** — Zod schemas shared between frontend + backend via `packages/`
 
+## Karpathy Guidelines (Codex Strict Mode)
+
+To counteract common LLM pitfalls, you MUST adhere to these four principles:
+
+1. **Think Before Coding**: Don't assume the data model. If the schema is unclear, ask. Present tradeoffs (e.g. normalizing tables vs JSONB columns) and don't pick silently.
+2. **Simplicity First**: No features beyond what was asked. No abstractions for single-use route handlers. No "flexibility" that wasn't requested. No error handling for impossible scenarios.
+3. **Surgical Changes**: When editing existing API routes, touch ONLY the specific logic requested. Do not refactor adjacent endpoints. Match existing code style perfectly.
+4. **Goal-Driven Execution**: Ensure endpoints are fully testable and adhere strictly to the requested OpenAPI/schema contract.
+
 ## Concrete patterns
 
 ### Route definition format

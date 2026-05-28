@@ -6,14 +6,22 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, renameSync, existsSync, mkdirSync, statSync } from "fs";
-import { join } from "path";
+import { join, dirname, basename } from "path";
 import { randomBytes } from "crypto";
 
-export const BUS_ROOT  = "D:\\.agents\\command-bus";
+export const BUS_ROOT   = "D:\\.agents\\command-bus";
 export const BRAIN_ROOT = "D:\\.agents";
-export const INBOX = join(BUS_ROOT, "inbox");
-export const ACTIVE = join(BUS_ROOT, "active");
-export const DONE   = join(BUS_ROOT, "done");
+export const INBOX      = join(BUS_ROOT, "inbox");
+export const ACTIVE     = join(BUS_ROOT, "active");
+export const DONE       = join(BUS_ROOT, "done");
+export const EVENTS_DIR = join(BUS_ROOT, "events");
+
+// Bootstrap events directory so SYNAPSE layer is always available
+ensureDirSync(EVENTS_DIR);
+
+function ensureDirSync(p: string): void {
+  if (!existsSync(p)) mkdirSync(p, { recursive: true });
+}
 
 export type Provider = "claude-code" | "antigravity" | "codex" | string;
 export type TaskStatus = "pending" | "claimed" | "done";
@@ -28,8 +36,16 @@ export interface RouteEntry {
 }
 
 let _matrixCache: Map<string, RouteEntry> | null = null;
+let _matrixMtimeMs: number = 0;
 
 export function loadRoutingMatrix(): Map<string, RouteEntry> {
+  // Invalidate cache if file has been modified (CEO edits take effect without restart)
+  if (_matrixCache && existsSync(ROUTING_MATRIX)) {
+    const currentMtime = statSync(ROUTING_MATRIX).mtimeMs;
+    if (currentMtime !== _matrixMtimeMs) {
+      _matrixCache = null;
+    }
+  }
   if (_matrixCache) return _matrixCache;
 
   const map = new Map<string, RouteEntry>();
@@ -38,6 +54,7 @@ export function loadRoutingMatrix(): Map<string, RouteEntry> {
     return map;
   }
 
+  _matrixMtimeMs = statSync(ROUTING_MATRIX).mtimeMs;
   const text = readFileSync(ROUTING_MATRIX, "utf-8");
   const lines = text.split("\n");
 
@@ -54,7 +71,7 @@ export function loadRoutingMatrix(): Map<string, RouteEntry> {
     // Inline format: role-name: { provider: X, model: Y }
     const inlineMatch = line.match(/^([a-z-]+):\s*\{\s*provider:\s*([a-z-]+)\s*,\s*model:\s*([a-z0-9.-]+)\s*\}/);
     if (inlineMatch) {
-      map.set(inlineMatch[1], { provider: inlineMatch[2], model: inlineMatch[3] });
+      map.set(inlineMatch[1]!, { provider: inlineMatch[2]!, model: inlineMatch[3]! });
       continue;
     }
 
@@ -66,7 +83,7 @@ export function loadRoutingMatrix(): Map<string, RouteEntry> {
       const providerMatch = next1?.match(/^\s+provider:\s*([a-z-]+)/);
       const modelMatch = next2?.match(/^\s+model:\s*([a-z0-9.-]+)/);
       if (providerMatch && modelMatch) {
-        map.set(blockMatch[1], { provider: providerMatch[1], model: modelMatch[1] });
+        map.set(blockMatch[1]!, { provider: providerMatch[1]!, model: modelMatch[1]! });
       }
     }
   }
@@ -130,7 +147,7 @@ export function genId(prefix = ""): string {
 }
 
 function ensureDir(p: string): void {
-  if (!existsSync(p)) mkdirSync(p, { recursive: true });
+  ensureDirSync(p);
 }
 
 // ─── sessions ───────────────────────────────────────────────────────────────
@@ -208,8 +225,8 @@ function parseTaskFilename(filename: string): { status: TaskStatus; claimedBy?: 
 
 /** Atomic claim — rename pending-X to claimed-<provider>-X. Returns null if lost race. */
 export function claimTask(taskPath: string, provider: Provider): string | null {
-  const dir = taskPath.substring(0, taskPath.lastIndexOf("\\"));
-  const oldName = taskPath.substring(taskPath.lastIndexOf("\\") + 1);
+  const dir = dirname(taskPath);
+  const oldName = basename(taskPath);
   if (!oldName.startsWith("pending-")) return null;
   const taskId = oldName.replace("pending-", "").replace(".yaml", "");
   const newName = `claimed-${provider}-${taskId}.yaml`;
@@ -223,8 +240,8 @@ export function claimTask(taskPath: string, provider: Provider): string | null {
 }
 
 export function markTaskDone(claimedPath: string, output: string): void {
-  const dir = claimedPath.substring(0, claimedPath.lastIndexOf("\\"));
-  const oldName = claimedPath.substring(claimedPath.lastIndexOf("\\") + 1);
+  const dir = dirname(claimedPath);
+  const oldName = basename(claimedPath);
   const m = oldName.match(/^claimed-[^-]+(?:-[^-]+)*?-([a-f0-9]+)\.yaml$/);
   if (!m) throw new Error(`Invalid claimed task filename: ${oldName}`);
   const taskId = m[1];
@@ -342,6 +359,118 @@ export function loadBrainContext(): string {
 
   if (sections.length === 0) return "";
   return `## Shared Brain — Team Knowledge\n\n${sections.join("\n\n---\n\n")}`;
+}
+
+// ─── synapse events ──────────────────────────────────────────────────────────
+
+export type SynapseEventType =
+  | "API_RATE_LIMIT_WARNING"
+  | "PROVIDER_UNAVAILABLE"
+  | "SCHEMA_DEPRECATION"
+  | "TASK_FAILED"
+  | "CODEBASE_CHANGED";
+
+export interface SynapseEvent {
+  id: string;
+  type: SynapseEventType;
+  domain: TaskDomain | "all";
+  severity: "info" | "warning" | "critical";
+  payload: Record<string, unknown>;
+  timestamp: string;
+  source: Provider;
+}
+
+export interface RuntimeOverrides {
+  maxTokens?: number;
+  delayMs?: number;
+  skipProviders?: Provider[];
+  notes?: string[];
+}
+
+/** Write an event file to the events directory. Returns the persisted event. */
+export function broadcastEvent(event: Omit<SynapseEvent, "id" | "timestamp">): SynapseEvent {
+  ensureDir(EVENTS_DIR);
+  const full: SynapseEvent = {
+    ...event,
+    id: genId("evt-"),
+    timestamp: new Date().toISOString(),
+  };
+  writeFileSync(join(EVENTS_DIR, `${Date.now()}-${event.type}.json`), JSON.stringify(full, null, 2));
+  return full;
+}
+
+/** Read all unprocessed event files. */
+export function readPendingEvents(): { event: SynapseEvent; path: string }[] {
+  if (!existsSync(EVENTS_DIR)) return [];
+  return readdirSync(EVENTS_DIR)
+    .filter((f) => f.endsWith(".json") && !f.includes(".processed"))
+    .sort()
+    .map((f) => {
+      const path = join(EVENTS_DIR, f);
+      try {
+        return { event: JSON.parse(readFileSync(path, "utf-8")) as SynapseEvent, path };
+      } catch {
+        return null;
+      }
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+}
+
+/**
+ * Choke point: return true if this event is relevant to the given domain.
+ * Domain "meta" (orchestrators) sees everything. "all" events broadcast everywhere.
+ */
+export function evaluateEventForDomain(event: SynapseEvent, domain: TaskDomain): boolean {
+  if (event.domain === "all") return true;
+  if (domain === "meta") return true;
+  return event.domain === domain;
+}
+
+/** Mark event as consumed — rename .json → .processed.json (idempotent). */
+export function consumeEvent(path: string): void {
+  const processed = path.replace(/\.json$/, ".processed.json");
+  try {
+    renameSync(path, processed);
+  } catch {
+    // already consumed by concurrent daemon instance
+  }
+}
+
+/** Derive runtime overrides from a set of relevant events. */
+export function buildRuntimeOverrides(events: SynapseEvent[]): RuntimeOverrides {
+  const overrides: RuntimeOverrides = {};
+  const notes: string[] = [];
+
+  for (const event of events) {
+    switch (event.type) {
+      case "API_RATE_LIMIT_WARNING":
+        overrides.maxTokens = Math.min(overrides.maxTokens ?? 8192, 4096);
+        overrides.delayMs   = Math.max(overrides.delayMs ?? 0, 2000);
+        notes.push(`⚠ API rate limit active — output target ≤4096 tokens, be concise`);
+        break;
+      case "PROVIDER_UNAVAILABLE":
+        if (typeof event.payload["provider"] === "string") {
+          overrides.skipProviders = [
+            ...(overrides.skipProviders ?? []),
+            event.payload["provider"] as Provider,
+          ];
+          notes.push(`⚠ Provider ${event.payload["provider"]} is unavailable`);
+        }
+        break;
+      case "SCHEMA_DEPRECATION":
+        notes.push(`⚠ Schema deprecation: ${event.payload["detail"] ?? "verify schema before writing migrations"}`);
+        break;
+      case "TASK_FAILED":
+        notes.push(`⚠ Related task ${event.payload["taskId"]} failed — reason: ${event.payload["reason"] ?? "unknown"}`);
+        break;
+      case "CODEBASE_CHANGED":
+        notes.push(`⚠ Codebase changed in domain "${event.payload["domain"]}" — re-read relevant files before writing`);
+        break;
+    }
+  }
+
+  if (notes.length > 0) overrides.notes = notes;
+  return overrides;
 }
 
 // ─── yaml (minimal — no deps) ───────────────────────────────────────────────

@@ -25,6 +25,15 @@ legal-master       ─┼─→ ship package
 deploy-master      ─┘
 ```
 
+## Karpathy Guidelines (Codex Strict Mode)
+
+To counteract common LLM pitfalls, you MUST adhere to these four principles when orchestrating the ship phase:
+
+1. **Think Before Coding**: Make explicit tradeoffs between time-to-ship and perfect reliability/compliance. Don't add complex monitoring if the scale doesn't demand it yet.
+2. **Simplicity First**: Ensure the deployment strategy is minimal. Avoid multi-region or over-abstracted CI/CD pipelines unless explicitly requested.
+3. **Surgical Changes**: When modifying existing pipelines or legal docs, only change what is required by the new release.
+4. **Goal-Driven Execution**: Deployments must be verifiable (preview URL works, prod URL works). Do not mark complete until verified.
+
 ## Output format
 
 ```json

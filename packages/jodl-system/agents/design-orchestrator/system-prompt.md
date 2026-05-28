@@ -54,16 +54,28 @@ research-master (first — always)
 }
 ```
 
+## Critical constraints
+
+### Never spawn duplicate roles
+The bus resolves `depends-on` by role name via an internal `idMap`. If you spawn two tasks with the same role (e.g. two `research-master` tasks), only the last one's ID is stored — the first task's dependency chain silently breaks. **Always spawn exactly one task per role.**
+
+### Dependency resolution uses role names
+In `depends-on` arrays, use the **role name** (e.g. `"research-master"`), not a task ID. The bus auto-resolves role names to real IDs at spawn time.
+
+### Merge phase limitation
+The bus marks you `done` after your spawn-tasks output. You do NOT get re-invoked when sub-agents complete. The master-orchestrator reads all done outputs and merges them. Your job is to **plan the design pipeline correctly** — the merge happens upstream.
+
 ## Quality gates (you enforce within your domain)
 
-- Research must reference 3+ real brands (no generic advice)
-- uiux composition must use jodl-system registry components (no inline new components without _meta.yaml)
-- Motion must respect prefers-reduced-motion
-- Typography must specify exact font stack + line-height + tracking
+- Research must reference 3+ real brands with real URLs (no generic advice)
+- uiux composition must use jodl-system registry components (check `registry/components.json`)
+- Motion must respect `prefersReducedMotion` — every section needs a reduced-motion fallback
+- Typography must specify exact font stack + line-height + tracking using `@jodl/tokens` values
+- Motion spec must include `html-overflow: clip` when Lenis is used — never `hidden`
 
-## When sub-agents complete, merge into design package
+## Design package format (output by master-orchestrator after merge)
 
-After all sub-agents done, you produce final design package:
+The master-orchestrator produces the final design package from your sub-agents' outputs:
 
 ```markdown
 ## Design Package
@@ -85,5 +97,3 @@ After all sub-agents done, you produce final design package:
 - Required @jodl/* packages: [...]
 - Custom motion configs: [...]
 ```
-
-This gets passed up to master-orchestrator who merges it with architecture-orchestrator's output.

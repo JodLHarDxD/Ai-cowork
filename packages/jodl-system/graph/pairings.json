@@ -1,7 +1,7 @@
 {
   "$schema": "./pairings-schema.json",
-  "version": "0.0.1",
-  "updated": "2026-05-26",
+  "version": "0.0.2",
+  "updated": "2026-05-29",
   "pairings": [
     {
       "id": "editorial-luxury-hero",
@@ -22,6 +22,26 @@
       "sources": ["sarta"],
       "rationale": "Standard ecommerce funnel. CartDrawer slides over ProductCard grid. CheckoutFlow replaces CartPage on proceed.",
       "quality": "staging"
+    },
+    {
+      "id": "tech-minimal-dashboard",
+      "components": ["tech-minimal", "wordFadeUp", "DataGrid", "NavigationRail"],
+      "context": ["saas", "dashboard", "tech", "minimal"],
+      "score": null,
+      "uses": 0,
+      "sources": [],
+      "rationale": "Monotypographic Inter stack + subtle word reveals. Clean data-dense layouts with minimal motion. Navigation rail provides persistent access.",
+      "quality": "experimental"
+    },
+    {
+      "id": "kinetic-fashion-hero",
+      "components": ["kinetic-display", "charRise", "lineSlide", "magnetic"],
+      "context": ["fashion", "editorial", "motion-heavy", "hero-dominant"],
+      "score": null,
+      "uses": 0,
+      "sources": [],
+      "rationale": "Bodoni Moda display + char-by-char reveal on hero + magnetic hover on CTAs. High-motion editorial experience for fashion lookbooks.",
+      "quality": "experimental"
     }
   ],
   "conflicts": [
@@ -36,6 +56,13 @@
       "components": ["lenisCinematic", "css-scroll-snap"],
       "reason": "Lenis overrides native scroll behavior. CSS scroll-snap conflicts — unpredictable momentum.",
       "quality": "proven"
+    },
+    {
+      "id": "charrise-body-text",
+      "components": ["charRise", "body-text"],
+      "reason": "charRise is char-by-char animation — too slow at body text scale (16px), causes reading delay. Use wordFadeUp or no reveal for body.",
+      "quality": "proven"
     }
   ]
 }
+

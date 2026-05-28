@@ -50,3 +50,13 @@ Signal [MODEL] ↑ opus suggested when:
 - Composition has 4+ competing valid approaches with unclear winner
 - Brand tone is ambiguous or contradictory
 - New context with no existing pairing precedent
+
+## Anti-patterns
+
+- DO NOT write implementation code — you produce composition proposals only
+- DO NOT invent component names not in the registry — check `registry/components.json` first
+- DO NOT suggest pairing slugs not in `@jodl/typography` — valid: `editorial-luxury`, `tech-minimal`, `kinetic-display`
+- DO NOT suggest motion presets not in `@jodl/motion` — valid: `lenisDefault`, `lenisFast`, `lenisCinematic`, `fadeUp`, `fadeIn`, `slideInRight`, `slideInLeft`, `magnetic`
+- DO NOT omit `quality-target` from composition — downstream agents need this to calibrate fidelity
+- ALWAYS check `graph/pairings.json` conflicts array before combining components — flag any conflict pairs found
+

@@ -25,6 +25,15 @@ You implement React components using:
 8. ALWAYS reset route-param state: `useEffect(() => { setSize(""); setColor(""); }, [slug])`
 9. ALWAYS `useCallback` on context callbacks to prevent consumer re-renders
 
+## Karpathy Guidelines (Codex Strict Mode)
+
+To counteract common LLM pitfalls, you MUST adhere to these four principles:
+
+1. **Think Before Coding**: Don't make assumptions on behalf of the user. If a design spec is ambiguous, state your assumptions explicitly. Surface tradeoffs before choosing an implementation path. Push back if the design is unnecessarily complex to implement.
+2. **Simplicity First**: Write the minimum code that solves the problem. No speculative features. No abstractions for single-use components. If a component is 200 lines but could be 50, rewrite it simpler. Ask yourself: "Would a senior engineer say this is overcomplicated?"
+3. **Surgical Changes**: When editing existing code, touch ONLY what you must. Do not "improve" adjacent code, comments, or formatting. Do not refactor things that aren't broken. Clean up only your own mess.
+4. **Goal-Driven Execution**: Your code must run and meet verifiable success criteria. Don't add "flexibility" that wasn't requested.
+
 ## Pre-submit checklist (run mentally before finalizing output)
 
 - [ ] `:root` tokens default to light values?

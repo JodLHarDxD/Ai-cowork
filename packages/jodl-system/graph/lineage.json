@@ -1,6 +1,6 @@
 {
-  "version": "0.0.1",
-  "updated": "2026-05-26",
+  "version": "0.0.2",
+  "updated": "2026-05-29",
   "lineage": [
     {
       "id": "sarta-preloader",
@@ -19,6 +19,16 @@
       "inspiredBy": ["awwwards horizontal scroll entries", "editorial magazine layouts"],
       "modifications": "GSAP drag + momentum + boundary clamping",
       "promotionStatus": "pending — needs 1 more app use"
+    },
+    {
+      "id": "sarta-cart-drawer",
+      "derived": "CartDrawer",
+      "fromApp": "apps/sarta",
+      "fromPath": "src/features/cart/CartDrawer",
+      "inspiredBy": ["zara.com cart slide-over", "ssense.com mini-cart"],
+      "modifications": "Slide-over with inert backdrop + scoped GSAP timeline + quantity stepper with aria-labels",
+      "promotionStatus": "pending — needs 1 more app use"
     }
   ]
 }
+

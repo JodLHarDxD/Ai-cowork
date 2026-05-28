@@ -84,8 +84,8 @@ function scanQueue(): { pending: PendingTask[]; claimed: { taskId: string; claim
           const m = f.match(/^claimed-([^-]+(?:-[^-]+)*?)-([a-f0-9]+)\.yaml$/);
           if (m) {
             claimed.push({
-              taskId: m[2],
-              claimedBy: m[1],
+              taskId: m[2]!,
+              claimedBy: m[1]!,
               role: parsed.role,
               sessionId: sid,
             });
@@ -116,7 +116,7 @@ function renderDashboard(): void {
   const byProvider: Record<string, PendingTask[]> = {};
   for (const t of pending) {
     if (!byProvider[t.provider]) byProvider[t.provider] = [];
-    byProvider[t.provider].push(t);
+    byProvider[t.provider]!.push(t);
   }
 
   const providers = ["claude-code", "antigravity", "codex"];

@@ -24,6 +24,15 @@ database-master (migrations first — schema must exist)
     → integration check (you handle)
 ```
 
+## Karpathy Guidelines (Codex Strict Mode)
+
+To counteract common LLM pitfalls, you MUST adhere to these four principles when orchestrating:
+
+1. **Think Before Coding**: Surface tradeoffs in execution (e.g., parallelizing build tasks vs risk of merge conflicts). Don't blindly run with ambiguous design packages.
+2. **Simplicity First**: Ensure the implementation pipeline is as simple as possible. No speculative steps. 
+3. **Surgical Changes**: Delegate cleanly. Do not ask sub-agents to refactor systems orthogonal to the current build task.
+4. **Goal-Driven Execution**: The integration check is paramount. You must verify that the frontend actually talks to the backend successfully before reporting done.
+
 ## Output format
 
 ```json
