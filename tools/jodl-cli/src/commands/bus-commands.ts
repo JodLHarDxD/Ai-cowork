@@ -8,7 +8,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import chalk from "chalk";
 import type { Command } from "commander";
@@ -29,24 +29,60 @@ import {
   loadBrainContext,
   domainForRole,
   routeFor,
+  readPendingEvents,
+  evaluateEventForDomain,
+  buildRuntimeOverrides,
+  consumeEvent,
+  broadcastEvent,
   type TaskFile,
+  type SynapseEventType,
+  type TaskDomain,
 } from "../bus.js";
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../..");
 const AGENTS_DIR = join(WORKSPACE_ROOT, "packages/jodl-system/agents");
 const PROFILES_DIR = "D:\\.agents\\provider-profiles";
 
+function loadBasePrompt(): string {
+  const path = join(AGENTS_DIR, "AGENTS_BASE.md");
+  return existsSync(path) ? readFileSync(path, "utf-8") : "";
+}
+
+const FEEDBACK_PATH = join(WORKSPACE_ROOT, "packages/jodl-system/graph/feedback.json");
+
+interface FeedbackStore {
+  version: string;
+  updated: string;
+  scores: Record<string, { uses: number; done: number; failed: number }>;
+  deprecated: string[];
+  notes: string;
+}
+
+function recordFeedback(role: string, outcome: "done" | "failed"): void {
+  if (!existsSync(FEEDBACK_PATH)) return;
+  try {
+    const store: FeedbackStore = JSON.parse(readFileSync(FEEDBACK_PATH, "utf-8"));
+    if (!store.scores[role]) store.scores[role] = { uses: 0, done: 0, failed: 0 };
+    store.scores[role]!.uses++;
+    store.scores[role]![outcome]++;
+    store.updated = new Date().toISOString().split("T")[0]!;
+    writeFileSync(FEEDBACK_PATH, JSON.stringify(store, null, 2));
+  } catch {
+    // feedback is best-effort — never block task completion
+  }
+}
+
 // ─── provider runners ────────────────────────────────────────────────────────
 
 /** Execute via Anthropic Claude (streaming). */
-async function runClaude(systemPrompt: string, brief: string, model: string): Promise<string> {
+async function runClaude(systemPrompt: string, brief: string, model: string, maxTokens = 8192): Promise<string> {
   const apiKey = process.env["ANTHROPIC_API_KEY"];
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
 
   const client = new Anthropic({ apiKey });
   const stream = client.messages.stream({
     model,
-    max_tokens: 8192,
+    max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: brief }],
   });
@@ -64,7 +100,7 @@ async function runClaude(systemPrompt: string, brief: string, model: string): Pr
 }
 
 /** Execute via Google Gemini (streaming). */
-async function runGemini(systemPrompt: string, brief: string, model: string): Promise<string> {
+async function runGemini(systemPrompt: string, brief: string, model: string, maxTokens = 8192): Promise<string> {
   const apiKey = process.env["GOOGLE_API_KEY"] ?? process.env["GEMINI_API_KEY"];
   if (!apiKey) throw new Error("GOOGLE_API_KEY (or GEMINI_API_KEY) not set");
 
@@ -79,7 +115,7 @@ async function runGemini(systemPrompt: string, brief: string, model: string): Pr
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContentStream({
     model,
-    config: { systemInstruction: systemPrompt, maxOutputTokens: 8192 },
+    config: { systemInstruction: systemPrompt, maxOutputTokens: maxTokens },
     contents: [{ role: "user", parts: [{ text: brief }] }],
   });
 
@@ -93,14 +129,14 @@ async function runGemini(systemPrompt: string, brief: string, model: string): Pr
 }
 
 /** Execute via OpenAI GPT (streaming). */
-async function runOpenAI(systemPrompt: string, brief: string, model: string): Promise<string> {
+async function runOpenAI(systemPrompt: string, brief: string, model: string, maxTokens = 8192): Promise<string> {
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) throw new Error("OPENAI_API_KEY not set");
 
   const client = new OpenAI({ apiKey });
   const stream = await client.chat.completions.create({
     model,
-    max_tokens: 8192,
+    max_tokens: maxTokens,
     stream: true,
     messages: [
       { role: "system", content: systemPrompt },
@@ -236,7 +272,7 @@ function parseAndSpawnChildren(sessionId: string, parentTaskId: string, output: 
   }
 
   try {
-    const parsed = JSON.parse(match[1]);
+    const parsed = JSON.parse(match[1]!);
     return spawnFromParsed(sessionId, parentTaskId, parsed);
   } catch (e) {
     console.error(chalk.yellow(`⚠ Failed to parse spawn-tasks JSON: ${e instanceof Error ? e.message : e}`));
@@ -246,17 +282,29 @@ function parseAndSpawnChildren(sessionId: string, parentTaskId: string, output: 
 
 function spawnFromParsed(sessionId: string, parentTaskId: string, parsed: { "spawn-tasks"?: Array<{ role: string; brief: string; "depends-on"?: string[]; "parallel-group"?: number }>; phase?: string }): number {
   const tasks = parsed["spawn-tasks"];
-  if (!Array.isArray(tasks)) return 0;
+  if (!Array.isArray(tasks)) {
+    console.error(chalk.red(`✗ spawn-tasks missing or not an array. Orchestrator output must end with JSON block containing "spawn-tasks": [...]`));
+    return 0;
+  }
 
-  // Map placeholder dep refs to real task ids
+  let spawned = 0;
+
+  // Map placeholder dep refs to real task ids (pre-pass for all valid tasks)
   const idMap = new Map<string, string>();
   for (const t of tasks) {
-    idMap.set(t.role, genId(""));
+    if (t.role && t.brief) idMap.set(t.role, genId(""));
   }
 
   for (const t of tasks) {
+    if (!t.role || !t.brief) {
+      console.error(chalk.red(`✗ Spawn task missing required field(s). Got: ${JSON.stringify(t)}. Required: { role, brief }. Skipping.`));
+      continue;
+    }
     const newId = idMap.get(t.role)!;
     const route = routeFor(t.role);
+    if (!route) {
+      console.warn(chalk.yellow(`⚠ No routing-matrix entry for role "${t.role}". Defaulting to claude-code. Add to D:\\.agents\\routing-matrix.yaml.`));
+    }
     const deps = (t["depends-on"] ?? []).map((d) => {
       // dep could be a role name (resolve via idMap) or already a task id
       return idMap.get(d) ?? d;
@@ -274,8 +322,9 @@ function spawnFromParsed(sessionId: string, parentTaskId: string, parsed: { "spa
       parallelGroup: t["parallel-group"],
     };
     writeTask(sessionId, child);
+    spawned++;
   }
-  return tasks.length;
+  return spawned;
 }
 
 // ─── next ───────────────────────────────────────────────────────────────────
@@ -342,33 +391,58 @@ async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?:
   const sessionContext = loadSessionContext(found.sessionId, taskDomain);
   const brainContext = loadBrainContext();
 
+  // SYNAPSE: check for broadcast events relevant to this domain
+  const { overrides, count: eventCount } = checkEvents(taskDomain);
+  if (eventCount > 0) {
+    console.log(chalk.yellow(`\n⚡ ${eventCount} SYNAPSE event(s) applied:`));
+    for (const note of overrides.notes ?? []) console.log(chalk.yellow(`   ${note}`));
+  }
+
+  // If this provider is flagged unavailable, abort execution and return task to pending
+  if (overrides.skipProviders?.includes(found.task.assignedProvider)) {
+    console.log(chalk.red(`\n✗ Provider ${found.task.assignedProvider} marked unavailable by SYNAPSE event.`));
+    console.log(chalk.gray(`  Returning task to pending. Fix the provider issue then retry.\n`));
+    const { renameSync } = await import("fs");
+    renameSync(claimedPath, found.path);
+    return;
+  }
+
+  const runtimeAlerts = overrides.notes?.length
+    ? `\n\n---\n\n## Runtime Alerts\n\n${overrides.notes.map((n) => `- ${n}`).join("\n")}`
+    : "";
+  const maxTokens = overrides.maxTokens ?? 8192;
+  const basePrompt = loadBasePrompt();
+
   const fullSystem = [
+    basePrompt     ? basePrompt                                             : null,
     systemPrompt,
     brainContext   ? `---\n\n${brainContext}`                               : null,
     sessionContext ? `---\n\n## Prior session outputs\n\n${sessionContext}` : null,
-  ].filter(Boolean).join("\n\n");
+  ].filter(Boolean).join("\n\n") + runtimeAlerts;
 
-  const taskWithFullSystem: TaskFile = { ...found.task, brief: found.task.brief };
+  if (overrides.delayMs) {
+    const delay = overrides.delayMs;
+    console.log(chalk.gray(`⏳ Delaying ${delay}ms (rate-limit back-off)...`));
+    await new Promise<void>((resolve) => setTimeout(resolve, delay));
+  }
 
   console.log(chalk.bold(`\n🤖 Running ${chalk.cyan(found.task.assignedProvider)} agent (${found.task.assignedModel ?? "default model"})...\n`));
   console.log(chalk.bold("─".repeat(60)));
 
   let output: string;
   try {
-    // executeTask uses the stored model but passes fullSystem as systemPrompt
     const model = found.task.assignedModel ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
     switch (found.task.assignedProvider) {
       case "claude-code":
-        output = await runClaude(fullSystem, found.task.brief, model);
+        output = await runClaude(fullSystem, found.task.brief, model, maxTokens);
         break;
       case "antigravity":
-        output = await runGemini(fullSystem, found.task.brief, model);
+        output = await runGemini(fullSystem, found.task.brief, model, maxTokens);
         break;
       case "codex":
-        output = await runOpenAI(fullSystem, found.task.brief, model);
+        output = await runOpenAI(fullSystem, found.task.brief, model, maxTokens);
         break;
       default: {
-        // Unknown provider — print brief for manual copy-paste
         console.log(chalk.yellow(`\n⚠ No auto-runner for provider "${found.task.assignedProvider}".`));
         console.log(chalk.gray(`  Task is claimed. Use: ${chalk.cyan(`jodl submit ${found.task.id} -f <output-file>`)}\n`));
         return;
@@ -379,12 +453,14 @@ async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?:
     console.error(chalk.red(`\n✗ Execution failed: ${err instanceof Error ? err.message : err}`));
     console.error(chalk.gray(`  Task remains claimed at: ${claimedPath}`));
     console.error(chalk.gray(`  Fix the error then run: jodl submit ${found.task.id} -f <output-file>\n`));
+    recordFeedback(found.task.role, "failed");
     process.exit(1);
   }
 
   console.log("\n" + chalk.bold("─".repeat(60)));
 
   markTaskDone(claimedPath, output);
+  recordFeedback(found.task.role, "done");
   console.log(chalk.green(`✓ Task done.`));
 
   // Any agent can spawn new tasks — not just orchestrators.
@@ -463,11 +539,41 @@ async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: 
     const taskDomain   = domainForRole(found.task.role);
     const sessionCtx   = loadSessionContext(found.sessionId, taskDomain);
     const brainCtx     = loadBrainContext();
+
+    // SYNAPSE: check broadcast events for this domain
+    const { overrides: dOverrides, count: dEventCount } = checkEvents(taskDomain);
+    if (dEventCount > 0) {
+      console.log(chalk.yellow(`⚡ ${dEventCount} SYNAPSE event(s):`));
+      for (const note of dOverrides.notes ?? []) console.log(chalk.yellow(`   ${note}`));
+    }
+
+    // If this provider is flagged unavailable, return task to pending and skip
+    if (dOverrides.skipProviders?.includes(found.task.assignedProvider)) {
+      console.log(chalk.red(`✗ Provider ${found.task.assignedProvider} unavailable — returning task to pending.`));
+      const { renameSync } = await import("fs");
+      renameSync(claimedPath, found.path);
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+      continue;
+    }
+
+    const runtimeAlerts = dOverrides.notes?.length
+      ? `\n\n---\n\n## Runtime Alerts\n\n${dOverrides.notes.map((n) => `- ${n}`).join("\n")}`
+      : "";
+    const dMaxTokens = dOverrides.maxTokens ?? 8192;
+    const dBasePrompt = loadBasePrompt();
+
     const fullSystem   = [
+      dBasePrompt ? dBasePrompt                                          : null,
       systemPrompt,
-      brainCtx   ? `---\n\n${brainCtx}`                               : null,
-      sessionCtx ? `---\n\n## Prior session outputs\n\n${sessionCtx}` : null,
-    ].filter(Boolean).join("\n\n");
+      brainCtx   ? `---\n\n${brainCtx}`                                 : null,
+      sessionCtx ? `---\n\n## Prior session outputs\n\n${sessionCtx}`   : null,
+    ].filter(Boolean).join("\n\n") + runtimeAlerts;
+
+    if (dOverrides.delayMs) {
+      const dDelay = dOverrides.delayMs;
+      console.log(chalk.gray(`⏳ Back-off ${dDelay}ms...`));
+      await new Promise<void>((resolve) => setTimeout(resolve, dDelay));
+    }
 
     console.log(chalk.bold(`\n🤖 Running ${chalk.cyan(found.task.assignedProvider)} (${found.task.assignedModel ?? "default"})...`));
     console.log(chalk.bold("─".repeat(60)));
@@ -476,9 +582,9 @@ async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: 
     try {
       const model = found.task.assignedModel ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
       switch (found.task.assignedProvider) {
-        case "claude-code": output = await runClaude(fullSystem, found.task.brief, model); break;
-        case "antigravity": output = await runGemini(fullSystem, found.task.brief, model); break;
-        case "codex":       output = await runOpenAI(fullSystem, found.task.brief, model); break;
+        case "claude-code": output = await runClaude(fullSystem, found.task.brief, model, dMaxTokens); break;
+        case "antigravity": output = await runGemini(fullSystem, found.task.brief, model, dMaxTokens); break;
+        case "codex":       output = await runOpenAI(fullSystem, found.task.brief, model, dMaxTokens); break;
         default:
           console.log(chalk.yellow(`No auto-runner for "${found.task.assignedProvider}" — skipping. Use jodl claim ${found.task.id}`));
           continue;
@@ -487,6 +593,7 @@ async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: 
       console.error(chalk.bold("\n─".repeat(60)));
       console.error(chalk.red(`✗ Execution failed: ${err instanceof Error ? err.message : err}`));
       console.error(chalk.gray(`  Task remains claimed. Fix error then: jodl submit ${found.task.id} -f <file>`));
+      recordFeedback(found.task.role, "failed");
       // Don't exit — keep daemon alive for next task
       count++;
       continue;
@@ -494,6 +601,7 @@ async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: 
 
     console.log("\n" + chalk.bold("─".repeat(60)));
     markTaskDone(claimedPath, output);
+    recordFeedback(found.task.role, "done");
     count++;
     console.log(chalk.green(`✓ Done (${count}${maxTasks !== Infinity ? "/" + maxTasks : ""}).`));
 
@@ -661,6 +769,65 @@ async function submitManual(taskId: string, opts: { file?: string }): Promise<vo
   }
 }
 
+// ─── synapse event helpers ────────────────────────────────────────────────────
+
+/**
+ * Read pending events, filter to domain, consume them, return overrides.
+ * Called once per task execution — events are consumed after reading so
+ * concurrent daemon instances don't double-apply them.
+ */
+function checkEvents(domain: TaskDomain): { overrides: ReturnType<typeof buildRuntimeOverrides>; count: number } {
+  const pending = readPendingEvents();
+  const relevant = pending.filter(({ event }) => evaluateEventForDomain(event, domain));
+  if (relevant.length === 0) return { overrides: {}, count: 0 };
+
+  const overrides = buildRuntimeOverrides(relevant.map(({ event }) => event));
+  for (const { path } of relevant) consumeEvent(path);
+  return { overrides, count: relevant.length };
+}
+
+function emitEvent(type: string, domain: string, payloadJson?: string): void {
+  const validTypes: SynapseEventType[] = [
+    "API_RATE_LIMIT_WARNING",
+    "PROVIDER_UNAVAILABLE",
+    "SCHEMA_DEPRECATION",
+    "TASK_FAILED",
+    "CODEBASE_CHANGED",
+  ];
+  if (!validTypes.includes(type as SynapseEventType)) {
+    console.error(chalk.red(`✗ Unknown event type "${type}". Valid: ${validTypes.join(", ")}`));
+    process.exit(1);
+  }
+  const validDomains = ["design", "architecture", "implementation", "security", "ship", "meta", "all"];
+  if (!validDomains.includes(domain)) {
+    console.error(chalk.red(`✗ Unknown domain "${domain}". Valid: ${validDomains.join(", ")}`));
+    process.exit(1);
+  }
+
+  let payload: Record<string, unknown> = {};
+  if (payloadJson) {
+    try {
+      payload = JSON.parse(payloadJson);
+    } catch {
+      console.error(chalk.red(`✗ Invalid JSON payload: ${payloadJson}`));
+      process.exit(1);
+    }
+  }
+
+  const provider = getProvider();
+  const event = broadcastEvent({
+    type: type as SynapseEventType,
+    domain: domain as TaskDomain | "all",
+    severity: domain === "all" ? "critical" : "warning",
+    payload,
+    source: provider,
+  });
+  console.log(chalk.green(`✓ Event broadcast: ${chalk.cyan(event.id)}`));
+  console.log(chalk.gray(`   type:   ${event.type}`));
+  console.log(chalk.gray(`   domain: ${event.domain}`));
+  console.log(chalk.gray(`   file:   ${event.id}\n`));
+}
+
 // ─── register ───────────────────────────────────────────────────────────────
 
 export function registerBusCommands(program: Command): void {
@@ -722,5 +889,17 @@ export function registerBusCommands(program: Command): void {
     .option("-f, --file <path>", "Read output from file instead of stdin")
     .action(async (taskId: string, opts: { file?: string }) => {
       await submitManual(taskId, opts);
+    });
+
+  program
+    .command("emit <type> <domain> [payload]")
+    .description(
+      "Broadcast a SYNAPSE event to all daemons\n" +
+      "  types:   API_RATE_LIMIT_WARNING | PROVIDER_UNAVAILABLE | SCHEMA_DEPRECATION | TASK_FAILED | CODEBASE_CHANGED\n" +
+      "  domains: design | architecture | implementation | security | ship | meta | all\n" +
+      "  payload: optional JSON string, e.g. '{\"provider\":\"codex\"}'"
+    )
+    .action((type: string, domain: string, payload?: string) => {
+      emitEvent(type, domain, payload);
     });
 }
