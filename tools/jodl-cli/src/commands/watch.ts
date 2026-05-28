@@ -9,6 +9,7 @@
 
 import { watch, existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { join } from "path";
+import { execSync } from "child_process";
 import chalk from "chalk";
 import type { Command } from "commander";
 
@@ -159,18 +160,43 @@ function renderDashboard(): void {
 
 let renderTimer: NodeJS.Timeout | null = null;
 let lastPendingCount = 0;
+let autoMode = false;
+let autoRunning = false; // prevent overlapping auto-runs
 
 function scheduleRender(): void {
   if (renderTimer) clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     const { pending } = scanQueue();
-    const newReady = pending.filter((t) => t.depsOk).length;
+    const ready = pending.filter((t) => t.depsOk);
+    const newReady = ready.length;
+
     if (newReady > lastPendingCount) {
-      // New work appeared — beep
-      process.stdout.write("\x07");
+      process.stdout.write("\x07"); // terminal bell
     }
     lastPendingCount = newReady;
     renderDashboard();
+
+    // --auto: when new work appears for current provider, fire jodl next once
+    if (autoMode && !autoRunning && newReady > 0) {
+      const provider = process.env["JODL_PROVIDER"] ?? "";
+      const myWork = ready.filter((t) => t.provider === provider);
+      if (myWork.length > 0) {
+        autoRunning = true;
+        console.log(chalk.bold.yellow(`\n⚡ Auto-running: jodl next (${provider})\n`));
+        try {
+          // Synchronous — output streams to terminal, then watch resumes
+          execSync("node tools/jodl-cli/bin/jodl.js next", {
+            cwd: process.env["JODL_WORKSPACE"] ?? process.cwd(),
+            stdio: "inherit",
+            env: process.env,
+          });
+        } catch {
+          // task may have errored — keep watching
+        }
+        autoRunning = false;
+        scheduleRender(); // refresh dashboard after run
+      }
+    }
   }, 200);
 }
 
@@ -178,11 +204,18 @@ export function registerWatchCommand(program: Command): void {
   program
     .command("watch")
     .description("Live dashboard — shows which provider has work waiting (run in dedicated terminal)")
-    .action(() => {
+    .option("--auto", "Auto-run jodl next when this provider gets new work (requires JODL_PROVIDER set)")
+    .action((opts: { auto?: boolean }) => {
       if (!existsSync(BUS_ACTIVE)) {
         console.error(chalk.red(`Bus dir not found: ${BUS_ACTIVE}`));
         console.error(chalk.gray("Run: jodl brief \"...\" first"));
         process.exit(1);
+      }
+
+      if (opts.auto) {
+        autoMode = true;
+        const provider = process.env["JODL_PROVIDER"] ?? "(not set)";
+        console.log(chalk.bold.yellow(`⚡ Auto mode ON — will run jodl next when ${chalk.cyan(provider)} gets work\n`));
       }
 
       renderDashboard();

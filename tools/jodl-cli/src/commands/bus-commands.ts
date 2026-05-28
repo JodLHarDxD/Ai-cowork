@@ -387,18 +387,126 @@ async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?:
   markTaskDone(claimedPath, output);
   console.log(chalk.green(`✓ Task done.`));
 
-  // Orchestrators parse spawn-tasks JSON and create children
-  if (found.task.role.endsWith("-orchestrator")) {
-    const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
-    if (spawned > 0) {
-      console.log(chalk.bold(`\n🌱 Spawned ${spawned} child task(s).`));
-      console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see which platform owns each.\n`));
-    } else {
-      console.log(chalk.yellow(`\n⚠ No spawn-tasks JSON found in orchestrator output — no children created.\n`));
-    }
+  // Any agent can spawn new tasks — not just orchestrators.
+  // A leaf agent discovering a cross-domain gap (e.g. frontend-master finding an
+  // API contract mismatch) outputs {"spawn-tasks":[...]} and the bus re-routes it.
+  const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
+  if (spawned > 0) {
+    console.log(chalk.bold(`\n🌱 Spawned ${spawned} child task(s).`));
+    console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see which platform owns each.\n`));
+  } else if (found.task.role.endsWith("-orchestrator")) {
+    console.log(chalk.yellow(`\n⚠ No spawn-tasks JSON found in orchestrator output — no children created.\n`));
   } else {
     console.log();
   }
+}
+
+// ─── daemon ─────────────────────────────────────────────────────────────────
+
+/**
+ * Auto-claim loop — runs tasks as they appear, re-wakes when new work is spawned.
+ *
+ * Flow per iteration:
+ *   1. findNextTask  → if found: claim + execute + parse spawn-tasks → loop immediately
+ *   2. if nothing:  sleep --interval seconds → check again
+ *
+ * This makes dynamic re-engagement automatic: if impl-orchestrator spawns an
+ * architect review task mid-session, the claude-code daemon picks it up on its
+ * next poll without any human intervention.
+ */
+async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: string }): Promise<void> {
+  const provider = getProvider();
+  const maxTasks  = opts.maxTasks  ?? Infinity;
+  const intervalMs = (opts.interval ?? 5) * 1000;
+  let count = 0;
+  let idle = false;
+
+  console.log(chalk.bold(`\n🔄 Daemon started`));
+  console.log(chalk.gray(`   provider:   ${provider}`));
+  console.log(chalk.gray(`   max-tasks:  ${maxTasks === Infinity ? "unlimited" : maxTasks}`));
+  console.log(chalk.gray(`   poll:       ${opts.interval ?? 5}s when idle`));
+  console.log(chalk.gray(`   Ctrl+C to stop\n`));
+
+  while (count < maxTasks) {
+    const found = findNextTask(provider, opts.sessionId);
+
+    if (!found) {
+      if (!idle) {
+        process.stdout.write(chalk.gray(`\nIdle — polling every ${opts.interval ?? 5}s for new tasks...`));
+        idle = true;
+      } else {
+        process.stdout.write(chalk.gray("."));
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+      continue;
+    }
+
+    if (idle) {
+      process.stdout.write("\n");
+      idle = false;
+    }
+
+    console.log(chalk.bold(`\n📌 Task ${chalk.cyan(found.task.id)} — ${found.task.role}`));
+    console.log(chalk.gray(`   session: ${found.sessionId}  phase: ${found.task.phase}`));
+
+    const claimedPath = claimTask(found.path, provider);
+    if (!claimedPath) {
+      console.log(chalk.yellow(`Lost race on ${found.task.id} — retrying...\n`));
+      continue;
+    }
+
+    const systemPromptPath = join(AGENTS_DIR, found.task.role, "system-prompt.md");
+    const systemPrompt = existsSync(systemPromptPath)
+      ? readFileSync(systemPromptPath, "utf-8")
+      : `You are the ${found.task.role} agent in the jodl-orchestration system.`;
+
+    const taskDomain   = domainForRole(found.task.role);
+    const sessionCtx   = loadSessionContext(found.sessionId, taskDomain);
+    const brainCtx     = loadBrainContext();
+    const fullSystem   = [
+      systemPrompt,
+      brainCtx   ? `---\n\n${brainCtx}`                               : null,
+      sessionCtx ? `---\n\n## Prior session outputs\n\n${sessionCtx}` : null,
+    ].filter(Boolean).join("\n\n");
+
+    console.log(chalk.bold(`\n🤖 Running ${chalk.cyan(found.task.assignedProvider)} (${found.task.assignedModel ?? "default"})...`));
+    console.log(chalk.bold("─".repeat(60)));
+
+    let output: string;
+    try {
+      const model = found.task.assignedModel ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
+      switch (found.task.assignedProvider) {
+        case "claude-code": output = await runClaude(fullSystem, found.task.brief, model); break;
+        case "antigravity": output = await runGemini(fullSystem, found.task.brief, model); break;
+        case "codex":       output = await runOpenAI(fullSystem, found.task.brief, model); break;
+        default:
+          console.log(chalk.yellow(`No auto-runner for "${found.task.assignedProvider}" — skipping. Use jodl claim ${found.task.id}`));
+          continue;
+      }
+    } catch (err) {
+      console.error(chalk.bold("\n─".repeat(60)));
+      console.error(chalk.red(`✗ Execution failed: ${err instanceof Error ? err.message : err}`));
+      console.error(chalk.gray(`  Task remains claimed. Fix error then: jodl submit ${found.task.id} -f <file>`));
+      // Don't exit — keep daemon alive for next task
+      count++;
+      continue;
+    }
+
+    console.log("\n" + chalk.bold("─".repeat(60)));
+    markTaskDone(claimedPath, output);
+    count++;
+    console.log(chalk.green(`✓ Done (${count}${maxTasks !== Infinity ? "/" + maxTasks : ""}).`));
+
+    const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
+    if (spawned > 0) {
+      console.log(chalk.bold(`🌱 Spawned ${spawned} child task(s) — looping immediately.\n`));
+      // Don't sleep — new work just appeared, go claim it right away
+    } else if (found.task.role.endsWith("-orchestrator")) {
+      console.log(chalk.yellow(`⚠ No spawn-tasks JSON in orchestrator output.\n`));
+    }
+  }
+
+  console.log(chalk.bold(`\n✓ Daemon reached max-tasks (${maxTasks}). Exiting.\n`));
 }
 
 // ─── status ─────────────────────────────────────────────────────────────────
@@ -539,17 +647,17 @@ async function submitManual(taskId: string, opts: { file?: string }): Promise<vo
   markTaskDone(claimedPath, output);
   console.log(chalk.green(`\n✓ Task ${taskId} marked done.`));
 
-  if (found?.task.role.endsWith("-orchestrator") && sessionId) {
+  if (sessionId) {
     const spawned = parseAndSpawnChildren(sessionId, taskId, output);
     if (spawned > 0) {
       console.log(chalk.bold(`\n🌱 Spawned ${spawned} child task(s).`));
       console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see which platform owns each.\n`));
-    } else {
+    } else if (found?.task.role.endsWith("-orchestrator")) {
       console.log(chalk.yellow(`\n⚠ No spawn-tasks JSON found — no children created.\n`));
       console.log(chalk.gray(`  Orchestrator output must end with a \`\`\`json block containing "spawn-tasks".\n`));
+    } else {
+      console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see updated queue.\n`));
     }
-  } else {
-    console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see updated queue.\n`));
   }
 }
 
@@ -578,6 +686,20 @@ export function registerBusCommands(program: Command): void {
     .option("--force-reclaim <taskId>", "Reset a stuck claimed task back to pending")
     .action(async (opts: { sessionId?: string; dryRun?: boolean; forceReclaim?: string }) => {
       await next(opts);
+    });
+
+  program
+    .command("daemon")
+    .description("Auto-claim loop — executes tasks as they appear, re-wakes when new work is spawned")
+    .option("-n, --max-tasks <n>", "Stop after N tasks (default: unlimited)")
+    .option("-i, --interval <seconds>", "Poll interval when idle (default: 5s)", "5")
+    .option("-s, --session-id <id>", "Limit to a specific session")
+    .action(async (opts: { maxTasks?: string; interval?: string; sessionId?: string }) => {
+      await daemon({
+        maxTasks:  opts.maxTasks  ? parseInt(opts.maxTasks)  : undefined,
+        interval:  opts.interval  ? parseInt(opts.interval)  : undefined,
+        sessionId: opts.sessionId,
+      });
     });
 
   program
