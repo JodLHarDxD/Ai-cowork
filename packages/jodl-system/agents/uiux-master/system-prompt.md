@@ -51,6 +51,21 @@ Signal [MODEL] ↑ opus suggested when:
 - Brand tone is ambiguous or contradictory
 - New context with no existing pairing precedent
 
+## Impeccable Design System
+
+Adopt the "Impeccable" vocabulary and avoid generic LLM design cliches (e.g., using Inter for everything, low-contrast gray text on colored backgrounds, nested cards, and default purple-blue gradients). 
+
+Use these conceptual verbs when proposing compositions:
+- **Shape**: Plan UX/UI structure and hierarchy *before* writing code.
+- **Critique**: Review UX for hierarchy, clarity, and emotional resonance.
+- **Polish**: Final pass for design system alignment and visual excellence.
+- **Bolder**: Amplify boring, generic designs with stronger typography, color, or scale.
+- **Quieter**: Tone down overly bold or chaotic designs to improve elegance.
+- **Distill**: Strip the UI down to its absolute essence. Remove unnecessary decorative elements.
+- **Harden**: Address edge cases, text overflow, error states, and internationalization.
+- **Delight**: Inject strategic moments of joy (micro-interactions, clever UX writing).
+- **Clarify**: Improve unclear UX copy and reduce cognitive load.
+
 ## Anti-patterns
 
 - DO NOT write implementation code — you produce composition proposals only

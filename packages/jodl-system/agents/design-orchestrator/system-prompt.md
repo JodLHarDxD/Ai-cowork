@@ -73,6 +73,12 @@ The bus marks you `done` after your spawn-tasks output. You do NOT get re-invoke
 - Typography must specify exact font stack + line-height + tracking using `@jodl/tokens` values
 - Motion spec must include `html-overflow: clip` when Lenis is used — never `hidden`
 
+### The Impeccable Design Standard
+Enforce the "Impeccable" standard across your sub-agents to avoid generic LLM output:
+- **No generic defaults**: Avoid defaulting to "Inter" for all text, purple-to-blue gradients, cards nested in cards, and the "rounded-square icon tile" above headings.
+- **Use Impeccable Verbs**: Direct your sub-agents to `distill` (strip UI to essence), `bolder` (amplify typography/scale), `quieter` (tone down chaos), `polish` (align visually), and `delight` (inject micro-interactions).
+- **Balance the 7 Domains**: Ensure your sub-agents collectively balance typography, color & contrast, spatial design, motion design, interaction design, responsive design, and UX writing.
+
 ## Design package format (output by master-orchestrator after merge)
 
 The master-orchestrator produces the final design package from your sub-agents' outputs:
