@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" role="img" aria-label="JODL Cowork System Architecture">
+
+  <!-- BACKGROUND -->
+  <rect width="900" height="480" fill="#0d1117"/>
+
+  <!-- HEADER -->
+  <rect x="0" y="0" width="900" height="42" fill="#161b22"/>
+  <line x1="0" y1="42" x2="900" y2="42" stroke="#30363d" stroke-width="1"/>
+  <text x="450" y="26" font-family="monospace" font-size="14" fill="#e6edf3" text-anchor="middle" font-weight="bold" letter-spacing="4">JODL COWORK — SYSTEM ARCHITECTURE</text>
+  <text x="450" y="37" font-family="monospace" font-size="8" fill="#586069" text-anchor="middle" letter-spacing="2">3 PROVIDERS · 22 AGENT ROLES · 1 FILESYSTEM BUS · NO SERVER</text>
+
+  <!-- ── ORCHESTRATION LAYER ── -->
+  <text x="16" y="56" font-family="monospace" font-size="8" fill="#586069" letter-spacing="1">ORCHESTRATION LAYER</text>
+
+  <!-- CEO Brief -->
+  <rect x="16" y="60" width="90" height="30" fill="#1c2128" stroke="#30363d" stroke-width="1" rx="3"/>
+  <text x="61" y="74" font-family="monospace" font-size="9" fill="#8b949e" text-anchor="middle" font-weight="bold">CEO BRIEF</text>
+  <text x="61" y="85" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">jodl brief "..."</text>
+
+  <!-- Arrow brief → master -->
+  <line x1="106" y1="75" x2="126" y2="75" stroke="#586069" stroke-width="1.5"/>
+  <polygon points="123,71 132,75 123,79" fill="#586069"/>
+
+  <!-- master-orchestrator -->
+  <rect x="132" y="60" width="168" height="30" fill="#1c2128" stroke="#da8b70" stroke-width="1.5" rx="3"/>
+  <text x="216" y="74" font-family="monospace" font-size="9" fill="#da8b70" text-anchor="middle" font-weight="bold">master-orchestrator</text>
+  <text x="216" y="85" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">parses brief · spawns domain tasks</text>
+
+  <!-- Fan-out: master (216,90) → horizontal at y=104 → 3 domain centers -->
+  <line x1="216" y1="90" x2="216" y2="104" stroke="#586069" stroke-width="1"/>
+  <line x1="150" y1="104" x2="750" y2="104" stroke="#586069" stroke-width="1"/>
+  <line x1="150" y1="104" x2="150" y2="113" stroke="#4285f4" stroke-width="1.5"/>
+  <line x1="450" y1="104" x2="450" y2="113" stroke="#e8865a" stroke-width="1.5"/>
+  <line x1="750" y1="104" x2="750" y2="113" stroke="#10a37f" stroke-width="1.5"/>
+
+  <!-- design-orchestrator (center x=150) -->
+  <rect x="50" y="113" width="200" height="32" fill="#1c2128" stroke="#4285f4" stroke-width="1.5" rx="3"/>
+  <text x="150" y="127" font-family="monospace" font-size="9" fill="#4285f4" text-anchor="middle" font-weight="bold">design-orchestrator</text>
+  <text x="150" y="138" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">research · uiux · motion · typography</text>
+
+  <!-- architecture-orchestrator (center x=450) -->
+  <rect x="350" y="113" width="200" height="32" fill="#1c2128" stroke="#e8865a" stroke-width="1.5" rx="3"/>
+  <text x="450" y="127" font-family="monospace" font-size="9" fill="#e8865a" text-anchor="middle" font-weight="bold">architecture-orchestrator</text>
+  <text x="450" y="138" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">architect · schema · style-guide</text>
+
+  <!-- implementation-orchestrator (center x=750) -->
+  <rect x="650" y="113" width="200" height="32" fill="#1c2128" stroke="#10a37f" stroke-width="1.5" rx="3"/>
+  <text x="750" y="127" font-family="monospace" font-size="9" fill="#10a37f" text-anchor="middle" font-weight="bold">implementation-orchestrator</text>
+  <text x="750" y="138" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">frontend · backend · database</text>
+
+  <!-- +more note -->
+  <text x="450" y="157" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">+ security-orchestrator (threat-modeler · vuln-scanner · pentest) · ship-orchestrator (reliability · legal · deploy)</text>
+
+  <!-- Domain orch → bus arrows -->
+  <line x1="150" y1="145" x2="150" y2="168" stroke="#4285f4" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="450" y1="145" x2="450" y2="168" stroke="#e8865a" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="750" y1="145" x2="750" y2="168" stroke="#10a37f" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- ── FILESYSTEM BUS ── -->
+  <text x="16" y="163" font-family="monospace" font-size="8" fill="#f0c060" letter-spacing="1">FILESYSTEM BUS  (~/.agents/command-bus/)</text>
+  <rect x="16" y="166" width="868" height="66" fill="#191400" stroke="#f0c060" stroke-width="2" rx="4"/>
+
+  <!-- pending state -->
+  <rect x="36" y="180" width="155" height="22" fill="#2a2000" stroke="#f0c060" stroke-width="1" rx="2"/>
+  <text x="113" y="195" font-family="monospace" font-size="8" fill="#f0c060" text-anchor="middle">pending-abc123.yaml</text>
+
+  <!-- → claim → -->
+  <line x1="191" y1="191" x2="215" y2="191" stroke="#f0c060" stroke-width="1.5"/>
+  <polygon points="212,187 221,191 212,195" fill="#f0c060"/>
+  <text x="203" y="186" font-family="monospace" font-size="6" fill="#8b949e" text-anchor="middle">claim</text>
+
+  <!-- claimed state -->
+  <rect x="221" y="180" width="182" height="22" fill="#2a2000" stroke="#f0c060" stroke-width="1" rx="2"/>
+  <text x="312" y="195" font-family="monospace" font-size="8" fill="#f0c060" text-anchor="middle">claimed-claude-abc123.yaml</text>
+
+  <!-- → done → -->
+  <line x1="403" y1="191" x2="427" y2="191" stroke="#f0c060" stroke-width="1.5"/>
+  <polygon points="424,187 433,191 424,195" fill="#f0c060"/>
+  <text x="415" y="186" font-family="monospace" font-size="6" fill="#8b949e" text-anchor="middle">done</text>
+
+  <!-- done state -->
+  <rect x="433" y="180" width="155" height="22" fill="#2a2000" stroke="#f0c060" stroke-width="1" rx="2"/>
+  <text x="510" y="195" font-family="monospace" font-size="8" fill="#f0c060" text-anchor="middle">done-abc123.yaml</text>
+
+  <!-- lock callout (right) -->
+  <rect x="606" y="173" width="264" height="52" fill="#0a0800" stroke="#f0c060" stroke-width="1" rx="2"/>
+  <text x="738" y="187" font-family="monospace" font-size="9" fill="#f0c060" text-anchor="middle" font-weight="bold">fs.renameSync() = distributed lock</text>
+  <text x="738" y="200" font-family="monospace" font-size="7" fill="#8b949e" text-anchor="middle">atomic NTFS + POSIX · first rename wins</text>
+  <text x="738" y="212" font-family="monospace" font-size="7" fill="#8b949e" text-anchor="middle">loser gets ENOENT · no mutex · no broker</text>
+  <text x="738" y="222" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">output includes spawn-tasks JSON → bus queues children</text>
+
+  <!-- Bus → provider arrows -->
+  <line x1="152" y1="232" x2="152" y2="250" stroke="#e8865a" stroke-width="1.5"/>
+  <line x1="450" y1="232" x2="450" y2="250" stroke="#4285f4" stroke-width="1.5"/>
+  <line x1="748" y1="232" x2="748" y2="250" stroke="#10a37f" stroke-width="1.5"/>
+
+  <!-- ── PROVIDER DAEMONS ── -->
+  <text x="16" y="248" font-family="monospace" font-size="8" fill="#586069" letter-spacing="1">PROVIDER DAEMONS  (jodl daemon — claims only tasks routed to its provider)</text>
+
+  <!-- CLAUDE (x=16, w=272, center=152) -->
+  <rect x="16" y="252" width="272" height="68" fill="#1c2128" stroke="#e8865a" stroke-width="1.5" rx="4"/>
+  <text x="152" y="270" font-family="monospace" font-size="11" fill="#e8865a" text-anchor="middle" font-weight="bold">CLAUDE</text>
+  <text x="152" y="283" font-family="monospace" font-size="8" fill="#8b949e" text-anchor="middle">provider: claude-code</text>
+  <text x="152" y="295" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">Anthropic API · claude-opus-4-8 / sonnet-4-6</text>
+  <text x="152" y="307" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">Karpathy strict mode · AGENTS_BASE layer</text>
+  <text x="152" y="316" font-family="monospace" font-size="7" fill="#c05020" text-anchor="middle">★ ARCHER</text>
+
+  <!-- GEMINI (x=314, w=272, center=450) -->
+  <rect x="314" y="252" width="272" height="68" fill="#1c2128" stroke="#4285f4" stroke-width="1.5" rx="4"/>
+  <text x="450" y="270" font-family="monospace" font-size="11" fill="#4285f4" text-anchor="middle" font-weight="bold">GEMINI</text>
+  <text x="450" y="283" font-family="monospace" font-size="8" fill="#8b949e" text-anchor="middle">provider: antigravity</text>
+  <text x="450" y="295" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">Google API · gemini-2.5-pro</text>
+  <text x="450" y="307" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">Impeccable design principles · AGENTS_BASE layer</text>
+  <text x="450" y="316" font-family="monospace" font-size="7" fill="#1a4fa0" text-anchor="middle">★ MAGE</text>
+
+  <!-- CODEX (x=612, w=272, center=748) -->
+  <rect x="612" y="252" width="272" height="68" fill="#1c2128" stroke="#10a37f" stroke-width="1.5" rx="4"/>
+  <text x="748" y="270" font-family="monospace" font-size="11" fill="#10a37f" text-anchor="middle" font-weight="bold">CODEX</text>
+  <text x="748" y="283" font-family="monospace" font-size="8" fill="#8b949e" text-anchor="middle">provider: codex</text>
+  <text x="748" y="295" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">OpenAI API · gpt-4o</text>
+  <text x="748" y="307" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">AGENTS_BASE layer</text>
+  <text x="748" y="316" font-family="monospace" font-size="7" fill="#0a6048" text-anchor="middle">★ KNIGHT</text>
+
+  <!-- ── SYSTEM FEATURES ── -->
+  <text x="16" y="334" font-family="monospace" font-size="8" fill="#586069" letter-spacing="1">SYSTEM FEATURES</text>
+
+  <!-- SYNAPSE (x=16, w=272) -->
+  <rect x="16" y="338" width="272" height="94" fill="#0d1a0d" stroke="#3fb950" stroke-width="1.5" rx="4"/>
+  <text x="152" y="354" font-family="monospace" font-size="10" fill="#3fb950" text-anchor="middle" font-weight="bold">SYNAPSE EVENTS</text>
+  <text x="152" y="366" font-family="monospace" font-size="7" fill="#8b949e" text-anchor="middle">filesystem pub/sub · no coordinator needed</text>
+  <text x="152" y="379" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">API_RATE_LIMIT_WARNING → all daemons throttle</text>
+  <text x="152" y="390" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">PROVIDER_UNAVAILABLE → skip + return task</text>
+  <text x="152" y="401" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">TASK_FAILED · CODEBASE_CHANGED</text>
+  <text x="152" y="412" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">SCHEMA_DEPRECATION</text>
+  <text x="152" y="425" font-family="monospace" font-size="7" fill="#3fb950" text-anchor="middle">events/ dir · consumed via rename → .processed.json</text>
+
+  <!-- BRAIN (x=314, w=272) -->
+  <rect x="314" y="338" width="272" height="94" fill="#120014" stroke="#8957e5" stroke-width="1.5" rx="4"/>
+  <text x="450" y="354" font-family="monospace" font-size="10" fill="#8957e5" text-anchor="middle" font-weight="bold">SHARED BRAIN</text>
+  <text x="450" y="366" font-family="monospace" font-size="7" fill="#8b949e" text-anchor="middle">~/.agents/ · git-versioned · injected per task</text>
+  <text x="450" y="379" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">mistakes/ — confirmed failures, never repeat</text>
+  <text x="450" y="390" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">patterns/ — proven across 2+ sessions</text>
+  <text x="450" y="401" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">staging/ — graduates to patterns/ when validated</text>
+  <text x="450" y="412" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">experiments/ — bold decisions pre-logged</text>
+  <text x="450" y="425" font-family="monospace" font-size="7" fill="#8957e5" text-anchor="middle">all 3 providers read + write the same dir</text>
+
+  <!-- ROUTING (x=612, w=272) -->
+  <rect x="612" y="338" width="272" height="94" fill="#0a1214" stroke="#58a6ff" stroke-width="1.5" rx="4"/>
+  <text x="748" y="354" font-family="monospace" font-size="10" fill="#58a6ff" text-anchor="middle" font-weight="bold">ROUTING MATRIX</text>
+  <text x="748" y="366" font-family="monospace" font-size="7" fill="#8b949e" text-anchor="middle">routing-matrix.yaml · mtime cache · hot-reload</text>
+  <text x="748" y="379" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">role → provider + model</text>
+  <text x="748" y="390" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">22 roles · CEO edits · next task picks up</text>
+  <text x="748" y="401" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">two-pass merge auto-queued per orchestrator</text>
+  <text x="748" y="412" font-family="monospace" font-size="7" fill="#586069" text-anchor="middle">spawn pass → isMerge task → merge pass</text>
+  <text x="748" y="425" font-family="monospace" font-size="7" fill="#58a6ff" text-anchor="middle">no restart · no deploy · just edit YAML</text>
+
+  <!-- FOOTER -->
+  <line x1="0" y1="444" x2="900" y2="444" stroke="#21262d" stroke-width="1"/>
+  <text x="16" y="458" font-family="monospace" font-size="8" fill="#586069">github.com/JodLHarDxD/Ai-cowork</text>
+  <text x="884" y="458" font-family="monospace" font-size="8" fill="#586069" text-anchor="end">MIT · TypeScript reference impl · language-agnostic protocol · docs/PROTOCOL.md</text>
+
+  <!-- outer border -->
+  <rect x="0" y="0" width="900" height="480" fill="none" stroke="#30363d" stroke-width="1"/>
+
+</svg>
