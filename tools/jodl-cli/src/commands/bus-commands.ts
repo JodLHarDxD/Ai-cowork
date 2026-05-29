@@ -255,7 +255,7 @@ async function brief(text: string, opts: { skipResearch?: boolean; phase?: strin
 }
 
 /** Parse JSON block from orchestrator output, create child tasks. */
-function parseAndSpawnChildren(sessionId: string, parentTaskId: string, output: string): number {
+function parseAndSpawnChildren(sessionId: string, parentTask: TaskFile, output: string): number {
   // Look for ```json ... ``` block at end of output
   const match = output.match(/```json\s*([\s\S]*?)```\s*$/);
   if (!match) {
@@ -265,7 +265,7 @@ function parseAndSpawnChildren(sessionId: string, parentTaskId: string, output: 
     try {
       const candidate = output.substring(lastBrace);
       const parsed = JSON.parse(candidate);
-      return spawnFromParsed(sessionId, parentTaskId, parsed);
+      return spawnFromParsed(sessionId, parentTask, parsed);
     } catch {
       return 0;
     }
@@ -273,14 +273,23 @@ function parseAndSpawnChildren(sessionId: string, parentTaskId: string, output: 
 
   try {
     const parsed = JSON.parse(match[1]!);
-    return spawnFromParsed(sessionId, parentTaskId, parsed);
+    return spawnFromParsed(sessionId, parentTask, parsed);
   } catch (e) {
     console.error(chalk.yellow(`⚠ Failed to parse spawn-tasks JSON: ${e instanceof Error ? e.message : e}`));
     return 0;
   }
 }
 
-function spawnFromParsed(sessionId: string, parentTaskId: string, parsed: { "spawn-tasks"?: Array<{ role: string; brief: string; "depends-on"?: string[]; "parallel-group"?: number }>; phase?: string }): number {
+function spawnFromParsed(sessionId: string, parentTask: TaskFile, parsed: { "spawn-tasks"?: Array<{ role: string; brief: string; "depends-on"?: string[]; "parallel-group"?: number }>; phase?: string }): number {
+  // A merge pass is terminal: ignore any spawn-tasks it emits, so an orchestrator that
+  // re-states its original plan on the merge pass can't re-spawn its sub-agents.
+  if (parentTask.isMerge) {
+    if (parsed["spawn-tasks"]) {
+      console.log(chalk.gray(`   (merge pass — ignoring spawn-tasks in output; pipeline already complete)`));
+    }
+    return 0;
+  }
+
   const tasks = parsed["spawn-tasks"];
   if (!Array.isArray(tasks)) {
     console.error(chalk.red(`✗ spawn-tasks missing or not an array. Orchestrator output must end with JSON block containing "spawn-tasks": [...]`));
@@ -324,7 +333,68 @@ function spawnFromParsed(sessionId: string, parentTaskId: string, parsed: { "spa
     writeTask(sessionId, child);
     spawned++;
   }
+
+  // Merge phase: re-queue the orchestrator so it runs again once its sub-agents finish.
+  // The follow-up task shares the orchestrator's role + prompt but depends on every child,
+  // so findNextTask gates it until all sub-agent outputs exist. It then synthesizes the
+  // final domain package (markdown only — no spawn-tasks, so this never recurses).
+  maybeSpawnMergeTask(sessionId, parentTask, [...idMap.values()], parsed.phase, spawned);
+
   return spawned;
+}
+
+/**
+ * Auto-spawn an orchestrator's merge pass.
+ *
+ * Only fires for a LEAF-spawning orchestrator: one whose children are all
+ * non-orchestrator roles. The master-orchestrator spawns domain *orchestrators*
+ * whose own spawn-tasks complete instantly, so a merge depending on those would
+ * fire before the grandchildren/leaf merges finish — that case is intentionally
+ * skipped (its re-invoke is a separate, deeper gap).
+ *
+ * `isMerge` on the parent is a hard guard: a merge pass never spawns another merge.
+ */
+function maybeSpawnMergeTask(
+  sessionId: string,
+  parentTask: TaskFile,
+  childIds: string[],
+  phase: string | undefined,
+  spawned: number,
+): void {
+  if (spawned === 0 || childIds.length === 0) return;
+  if (parentTask.isMerge) return;
+  if (!parentTask.role.endsWith("-orchestrator")) return;
+
+  // Skip if any child is itself an orchestrator (premature-merge hazard).
+  const spawnedChildren = listTasks(sessionId).filter((t) => childIds.includes(t.task.id));
+  if (spawnedChildren.some((t) => t.task.role.endsWith("-orchestrator"))) return;
+
+  const route = routeFor(parentTask.role);
+  const domain = domainForRole(parentTask.role);
+  const mergeTask: TaskFile = {
+    id: genId(""),
+    sessionId,
+    role: parentTask.role,
+    assignedProvider: route?.provider ?? parentTask.assignedProvider,
+    assignedModel: route?.model ?? parentTask.assignedModel,
+    brief:
+      `## MERGE PHASE\n\n` +
+      `Your sub-agents have all completed. Their outputs are included in your prior-session ` +
+      `context above.\n\n` +
+      `Produce the final merged ${domain} package following the package format in your system ` +
+      `prompt. Synthesize the sub-agent outputs into one coherent handoff — do not just ` +
+      `concatenate them. Resolve any cross-agent inconsistencies.\n\n` +
+      `IMPORTANT: Output markdown only. Do NOT emit a spawn-tasks JSON block — the pipeline ` +
+      `is complete and another spawn would loop.`,
+    dependsOn: childIds,
+    phase: (phase ?? parentTask.phase) as TaskFile["phase"],
+    isMerge: true,
+  };
+  writeTask(sessionId, mergeTask);
+  console.log(
+    chalk.bold(`\n🔗 Queued merge pass for ${parentTask.role}`) +
+    chalk.gray(` (task ${mergeTask.id}, waits on ${childIds.length} sub-agent(s))`),
+  );
 }
 
 // ─── next ───────────────────────────────────────────────────────────────────
@@ -466,7 +536,7 @@ async function next(opts: { sessionId?: string; dryRun?: boolean; forceReclaim?:
   // Any agent can spawn new tasks — not just orchestrators.
   // A leaf agent discovering a cross-domain gap (e.g. frontend-master finding an
   // API contract mismatch) outputs {"spawn-tasks":[...]} and the bus re-routes it.
-  const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
+  const spawned = parseAndSpawnChildren(found.sessionId, found.task, output);
   if (spawned > 0) {
     console.log(chalk.bold(`\n🌱 Spawned ${spawned} child task(s).`));
     console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see which platform owns each.\n`));
@@ -605,7 +675,7 @@ async function daemon(opts: { maxTasks?: number; interval?: number; sessionId?: 
     count++;
     console.log(chalk.green(`✓ Done (${count}${maxTasks !== Infinity ? "/" + maxTasks : ""}).`));
 
-    const spawned = parseAndSpawnChildren(found.sessionId, found.task.id, output);
+    const spawned = parseAndSpawnChildren(found.sessionId, found.task, output);
     if (spawned > 0) {
       console.log(chalk.bold(`🌱 Spawned ${spawned} child task(s) — looping immediately.\n`));
       // Don't sleep — new work just appeared, go claim it right away
@@ -750,17 +820,16 @@ async function submitManual(taskId: string, opts: { file?: string }): Promise<vo
 
   // Find session for spawn-tasks parsing
   const found = findTaskById(taskId);
-  const sessionId = found?.sessionId ?? "";
 
   markTaskDone(claimedPath, output);
   console.log(chalk.green(`\n✓ Task ${taskId} marked done.`));
 
-  if (sessionId) {
-    const spawned = parseAndSpawnChildren(sessionId, taskId, output);
+  if (found) {
+    const spawned = parseAndSpawnChildren(found.sessionId, found.task, output);
     if (spawned > 0) {
       console.log(chalk.bold(`\n🌱 Spawned ${spawned} child task(s).`));
       console.log(chalk.gray(`   Run ${chalk.cyan("jodl status")} to see which platform owns each.\n`));
-    } else if (found?.task.role.endsWith("-orchestrator")) {
+    } else if (found.task.role.endsWith("-orchestrator")) {
       console.log(chalk.yellow(`\n⚠ No spawn-tasks JSON found — no children created.\n`));
       console.log(chalk.gray(`  Orchestrator output must end with a \`\`\`json block containing "spawn-tasks".\n`));
     } else {

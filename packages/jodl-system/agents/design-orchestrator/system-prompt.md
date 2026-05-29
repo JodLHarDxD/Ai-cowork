@@ -62,8 +62,18 @@ The bus resolves `depends-on` by role name via an internal `idMap`. If you spawn
 ### Dependency resolution uses role names
 In `depends-on` arrays, use the **role name** (e.g. `"research-master"`), not a task ID. The bus auto-resolves role names to real IDs at spawn time.
 
-### Merge phase limitation
-The bus marks you `done` after your spawn-tasks output. You do NOT get re-invoked when sub-agents complete. The master-orchestrator reads all done outputs and merges them. Your job is to **plan the design pipeline correctly** — the merge happens upstream.
+### Merge phase (automatic two-pass)
+You run **twice**. The bus drives this for you:
+
+1. **Spawn pass** — your first invocation. You emit the `spawn-tasks` JSON below. The bus then
+   auto-queues a follow-up merge task for you that depends on every sub-agent you spawned.
+2. **Merge pass** — once all sub-agents are `done`, the bus re-invokes you with their outputs in
+   your prior-session context and a brief beginning `## MERGE PHASE`. On this pass you produce the
+   final merged design package (format at the bottom of this file). **Do NOT emit spawn-tasks on
+   the merge pass** — output markdown only, or you will loop.
+
+Detect which pass you're on by the brief: a `## MERGE PHASE` brief = merge pass. The
+master-orchestrator consumes your merged package, not the raw sub-agent outputs.
 
 ## Quality gates (you enforce within your domain)
 
@@ -79,9 +89,9 @@ Enforce the "Impeccable" standard across your sub-agents to avoid generic LLM ou
 - **Use Impeccable Verbs**: Direct your sub-agents to `distill` (strip UI to essence), `bolder` (amplify typography/scale), `quieter` (tone down chaos), `polish` (align visually), and `delight` (inject micro-interactions).
 - **Balance the 7 Domains**: Ensure your sub-agents collectively balance typography, color & contrast, spatial design, motion design, interaction design, responsive design, and UX writing.
 
-## Design package format (output by master-orchestrator after merge)
+## Design package format (you output this on the merge pass)
 
-The master-orchestrator produces the final design package from your sub-agents' outputs:
+On your merge pass, synthesize your sub-agents' outputs into this package:
 
 ```markdown
 ## Design Package

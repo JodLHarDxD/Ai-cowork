@@ -124,6 +124,7 @@ export interface TaskFile {
   dependsOn: string[];        // task ids that must finish first
   phase: "design" | "build" | "ship";
   parallelGroup?: number;
+  isMerge?: boolean;          // re-invoke pass: orchestrator merging its sub-agents' outputs
 }
 
 export interface Session {
@@ -481,7 +482,7 @@ sessionId: ${t.sessionId}
 role: ${t.role}
 assignedProvider: ${t.assignedProvider}
 ${t.assignedModel ? `assignedModel: ${t.assignedModel}\n` : ""}phase: ${t.phase}
-${t.parallelGroup !== undefined ? `parallelGroup: ${t.parallelGroup}\n` : ""}dependsOn: [${t.dependsOn.join(", ")}]
+${t.parallelGroup !== undefined ? `parallelGroup: ${t.parallelGroup}\n` : ""}${t.isMerge ? `isMerge: true\n` : ""}dependsOn: [${t.dependsOn.join(", ")}]
 brief: |
 ${t.brief.split("\n").map((l) => "  " + l).join("\n")}
 `;
@@ -508,6 +509,7 @@ function yamlToTask(s: string): TaskFile {
     assignedModel: get("assignedModel") || undefined,
     phase: (get("phase") || "design") as TaskFile["phase"],
     parallelGroup: get("parallelGroup") ? parseInt(get("parallelGroup")) : undefined,
+    isMerge: get("isMerge") === "true" || undefined,
     dependsOn,
     brief,
   };
