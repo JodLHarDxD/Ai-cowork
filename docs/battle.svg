@@ -272,7 +272,7 @@
   </g>
 
   <!-- Impact flash on bug (white hit flash) -->
-  <ellipse cx="681" cy="115" rx="55" ry="44" fill="#ffffff" opacity="0" rx="4">
+  <ellipse cx="681" cy="115" rx="55" ry="44" fill="#ffffff" opacity="0">
     <animate attributeName="opacity"
       values="0;0;0;0.5;0; 0;0;0;0.4;0; 0;0;0;0.35;0"
       keyTimes="0;0.14;0.16;0.18;0.22; 0.42;0.44;0.46;0.48;0.52; 0.72;0.74;0.76;0.78;0.82"
