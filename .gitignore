@@ -15,6 +15,10 @@ coverage
 .idea
 *.tsbuildinfo
 
+# personal / app-specific (not part of system)
+apps/
+*.pdf
+
 # jodl-system local cache
 packages/jodl-system/embeddings/*.sqlite
 packages/jodl-system/embeddings/*.faiss
