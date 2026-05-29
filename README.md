@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/battle.svg" alt="Claude (Archer) · Gemini (Mage) · Codex (Knight) battle The Bug together" width="840"/>
+  <img src="docs/intro.svg" alt="JodL cowork pixel animation" width="840"/>
 </p>
 
 <p align="center">

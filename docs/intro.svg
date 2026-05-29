@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 280" width="840" height="280" role="img">
+  <rect width="100%" height="100%" fill="#0d1117"/>
+  
+  <clipPath id="typing">
+    <rect x="0" y="0" width="0" height="300">
+      <animate attributeName="width" from="0" to="840" dur="2s" fill="freeze" />
+    </rect>
+  </clipPath>
+
+  <g clip-path="url(#typing)">
+    <text x="420" y="70" font-family="monospace" font-size="12" fill="#87CEEB" text-anchor="middle" xml:space="preserve" font-weight="bold">
+      <tspan x="420" dy="0">      ██                ██ ██                                                                 ██         </tspan>
+      <tspan x="420" dy="18">      ██                ██ ██                                                                 ██   ██    </tspan>
+      <tspan x="420" dy="18">      ██  ██████  ████████ ██        ██████   ██████  ██      ██  ██████  ███████ ██████                 </tspan>
+      <tspan x="420" dy="18">██    ██ ██    ██ ██    ██ ██       ██       ██    ██ ██  ██  ██ ██    ██ ██      ██   ██                </tspan>
+      <tspan x="420" dy="18"> ██████   ██████  ████████ ████████  ██████   ██████   ████████   ██████  ██      ██    ██               </tspan>
+    </text>
+  </g>
+
+  <!-- Frame 1 -->
+  <g>
+    <text x="420" y="190" font-family="monospace" font-size="14" fill="#FF8C00" text-anchor="middle" xml:space="preserve" font-weight="bold">
+      <tspan x="420" dy="0">     ████     </tspan>
+      <tspan x="420" dy="16">   ████████   </tspan>
+      <tspan x="420" dy="16">   ██ ██ ██   </tspan>
+      <tspan x="420" dy="16">   ████████   </tspan>
+      <tspan x="420" dy="16">     ██  ██   </tspan>
+    </text>
+    <animate attributeName="opacity" values="1;0" dur="0.6s" repeatCount="indefinite" calcMode="discrete"/>
+  </g>
+
+  <!-- Frame 2 -->
+  <g>
+    <text x="420" y="190" font-family="monospace" font-size="14" fill="#FF8C00" text-anchor="middle" xml:space="preserve" font-weight="bold">
+      <tspan x="420" dy="0">     ████     </tspan>
+      <tspan x="420" dy="16">   ████████   </tspan>
+      <tspan x="420" dy="16">   ██ ██ ██   </tspan>
+      <tspan x="420" dy="16">   ████████   </tspan>
+      <tspan x="420" dy="16">    ██    ██  </tspan>
+    </text>
+    <animate attributeName="opacity" values="0;1" dur="0.6s" repeatCount="indefinite" calcMode="discrete"/>
+  </g>
+</svg>
