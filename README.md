@@ -1,8 +1,11 @@
-# JODL Cowork
+<p align="center">
+  <img src="docs/battle.svg" alt="Claude (Archer) · Gemini (Mage) · Codex (Knight) battle The Bug together" width="840"/>
+</p>
 
-> Multi-AI orchestration via filesystem. Claude, Gemini, GPT, and Codex agents claim tasks, run them, and spawn children — no server, no database, no network.
-
-**Live blueprint** → [docs-blue-eight.vercel.app](https://docs-blue-eight.vercel.app)
+<p align="center">
+  <b>Multi-AI orchestration via filesystem.</b><br/>
+  Claude, Gemini, and Codex agents claim tasks, run them, and spawn children — no server, no database, no network.
+</p>
 
 ---
 
