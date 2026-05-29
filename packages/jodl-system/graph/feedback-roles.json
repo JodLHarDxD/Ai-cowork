@@ -1,0 +1,6 @@
+{
+  "version": "0.1.0",
+  "updated": "2026-05-29",
+  "scores": {},
+  "notes": "Per-role task outcomes. Schema: { role: { uses: N, done: N, failed: N } }. Written by bus daemon on every task completion."
+}

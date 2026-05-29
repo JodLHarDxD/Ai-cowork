@@ -48,7 +48,7 @@ function loadBasePrompt(): string {
   return existsSync(path) ? readFileSync(path, "utf-8") : "";
 }
 
-const FEEDBACK_PATH = join(WORKSPACE_ROOT, "packages/jodl-system/graph/feedback.json");
+const FEEDBACK_PATH = join(WORKSPACE_ROOT, "packages/jodl-system/graph/feedback-roles.json");
 
 interface FeedbackStore {
   version: string;

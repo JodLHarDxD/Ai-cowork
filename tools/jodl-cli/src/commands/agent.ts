@@ -14,9 +14,11 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import chalk from "chalk";
+import { routeFor, loadBrainContext } from "../bus.js";
 
 // ─── paths ───────────────────────────────────────────────────────────────────
 
@@ -73,15 +75,10 @@ function listAgents(): string[] {
 // ─── run agent ───────────────────────────────────────────────────────────────
 
 export async function runAgent(agentName: string, brief: string, opts: { stream?: boolean; model?: string }) {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
-  if (!apiKey) {
-    console.error(chalk.red("Error: ANTHROPIC_API_KEY not set"));
-    console.error("  Set it: $env:ANTHROPIC_API_KEY = 'sk-ant-...'");
-    process.exit(1);
-  }
-
-  const model = opts.model ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
-  const client = new Anthropic({ apiKey });
+  // Resolve provider + model from routing matrix (falls back to claude-code / sonnet)
+  const route = routeFor(agentName);
+  const provider = route?.provider ?? "claude-code";
+  const model = opts.model ?? route?.model ?? process.env["JODL_MODEL"] ?? "claude-sonnet-4-6";
 
   let systemPrompt: string;
   try {
@@ -92,47 +89,71 @@ export async function runAgent(agentName: string, brief: string, opts: { stream?
   }
 
   const registryContext = loadRegistryContext();
+  const brainContext = loadBrainContext();
 
-  // Inject registry as additional context block
-  const fullSystem = `${systemPrompt}\n\n---\n\n${registryContext}`;
+  const fullSystem = [
+    systemPrompt,
+    brainContext    ? `---\n\n${brainContext}`                                : null,
+    registryContext ? `---\n\n## Component Registry\n\n${registryContext}`   : null,
+  ].filter(Boolean).join("\n\n");
 
   console.log(chalk.bold(`\n🤖 ${agentName}`));
-  console.log(chalk.gray(`   model: ${model}`));
+  console.log(chalk.gray(`   provider: ${provider} · model: ${model}`));
   console.log(chalk.gray(`   brief: ${brief}\n`));
   console.log(chalk.bold("─".repeat(60)));
 
-  if (opts.stream !== false) {
-    // Streaming mode (default)
-    const stream = client.messages.stream({
-      model,
-      max_tokens: 4096,
-      system: fullSystem,
-      messages: [{ role: "user", content: brief }],
-    });
+  switch (provider) {
+    case "antigravity": {
+      const apiKey = process.env["GOOGLE_API_KEY"] ?? process.env["GEMINI_API_KEY"];
+      if (!apiKey) { console.error(chalk.red("Error: GOOGLE_API_KEY not set")); process.exit(1); }
+      let GoogleGenAI: typeof import("@google/genai").GoogleGenAI;
+      try { ({ GoogleGenAI } = await import("@google/genai")); }
+      catch { console.error(chalk.red("Error: @google/genai not installed. Run: pnpm add @google/genai")); process.exit(1); }
+      const ai = new GoogleGenAI({ apiKey });
+      const result = await ai.models.generateContentStream({
+        model,
+        config: { systemInstruction: fullSystem, maxOutputTokens: 4096 },
+        contents: [{ role: "user", parts: [{ text: brief }] }],
+      });
+      for await (const chunk of result) process.stdout.write(chunk.text ?? "");
+      console.log("\n" + chalk.bold("─".repeat(60)));
+      break;
+    }
 
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        process.stdout.write(event.delta.text);
+    case "codex": {
+      const apiKey = process.env["OPENAI_API_KEY"];
+      if (!apiKey) { console.error(chalk.red("Error: OPENAI_API_KEY not set")); process.exit(1); }
+      const client = new OpenAI({ apiKey });
+      const stream = await client.chat.completions.create({
+        model,
+        max_tokens: 4096,
+        stream: true,
+        messages: [{ role: "system", content: fullSystem }, { role: "user", content: brief }],
+      });
+      for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
+      console.log("\n" + chalk.bold("─".repeat(60)));
+      break;
+    }
+
+    default: { // claude-code
+      const apiKey = process.env["ANTHROPIC_API_KEY"];
+      if (!apiKey) { console.error(chalk.red("Error: ANTHROPIC_API_KEY not set")); process.exit(1); }
+      const client = new Anthropic({ apiKey });
+      if (opts.stream !== false) {
+        const stream = client.messages.stream({ model, max_tokens: 4096, system: fullSystem, messages: [{ role: "user", content: brief }] });
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") process.stdout.write(event.delta.text);
+        }
+        console.log("\n" + chalk.bold("─".repeat(60)));
+        const usage = (await stream.finalMessage()).usage;
+        console.log(chalk.gray(`\nTokens: ${usage.input_tokens} in / ${usage.output_tokens} out`));
+      } else {
+        const msg = await client.messages.create({ model, max_tokens: 4096, system: fullSystem, messages: [{ role: "user", content: brief }] });
+        console.log(msg.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+        console.log("\n" + chalk.bold("─".repeat(60)));
+        console.log(chalk.gray(`\nTokens: ${msg.usage.input_tokens} in / ${msg.usage.output_tokens} out`));
       }
     }
-    console.log("\n" + chalk.bold("─".repeat(60)));
-
-    const usage = (await stream.finalMessage()).usage;
-    console.log(chalk.gray(`\nTokens: ${usage.input_tokens} in / ${usage.output_tokens} out`));
-
-  } else {
-    // Non-streaming
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 4096,
-      system: fullSystem,
-      messages: [{ role: "user", content: brief }],
-    });
-
-    const text = msg.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-    console.log(text);
-    console.log("\n" + chalk.bold("─".repeat(60)));
-    console.log(chalk.gray(`\nTokens: ${msg.usage.input_tokens} in / ${msg.usage.output_tokens} out`));
   }
 }
 
